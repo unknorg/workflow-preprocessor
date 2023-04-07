@@ -1,0 +1,13 @@
+imports:
+  - internal-template.yml
+
+jobs:
+  test:
+    extends: internal-template/run-on-ubuntu
+    name: A job to test
+    steps:
+      - name: Test
+        run: |
+          echo "Testing the app"
+          ./test-script.sh
+          echo "Finished testing"

@@ -1,0 +1,16 @@
+name: Workflow
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+imports:
+  - templates/non-existing-template.yml
+
+jobs:
+  build:
+    name: A job to run advanced tests
+    extends: non-existing-template/job1

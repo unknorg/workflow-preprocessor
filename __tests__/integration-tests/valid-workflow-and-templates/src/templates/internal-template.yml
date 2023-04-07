@@ -1,0 +1,4 @@
+jobs:
+  run-on-ubuntu:
+    runs-on: ubuntu-18.04
+    name: A job to run commands on debian

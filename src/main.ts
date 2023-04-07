@@ -1,19 +1,30 @@
 import * as core from '@actions/core'
-import {wait} from './wait'
+import {load as loadTemplates} from './templates'
+import {buildWorkflows, load as loadWorkflows} from './workflows'
+import {validateNoCircularRefs} from './validation'
+import {writeYAML} from './utils'
+import {info, trace} from './logging'
 
-async function run(): Promise<void> {
+export async function run(): Promise<void> {
   try {
-    const ms: string = core.getInput('milliseconds')
-    core.debug(`Waiting ${ms} milliseconds ...`) // debug is only output if you set the secret `ACTIONS_STEP_DEBUG` to true
+    trace('main.ts#run()')
+    const templates = loadTemplates()
+    const workflows = loadWorkflows(templates)
+    validateNoCircularRefs([...workflows.values()])
 
-    core.debug(new Date().toTimeString())
-    await wait(parseInt(ms, 10))
-    core.debug(new Date().toTimeString())
+    const githubWorkflows = buildWorkflows([...workflows.values()])
+    for (const [filename, workflow] of githubWorkflows) {
+      info(`Writing ${filename}`)
+      writeYAML(filename, workflow)
+    }
 
     core.setOutput('time', new Date().toTimeString())
   } catch (error) {
     if (error instanceof Error) core.setFailed(error.message)
+    throw error
   }
 }
 
-run()
+if (require.main === module) {
+  run()
+}

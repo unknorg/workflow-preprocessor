@@ -5,6 +5,9 @@
   "description": "TypeScript template action",
   "main": "lib/main.js",
   "scripts": {
+    "gen-workflow": "typescript-json-schema --required --noExtraProps --out schema/workflow.json src/schema/custom-schemas.ts Workflow",
+    "gen-template": "typescript-json-schema --required --noExtraProps --out schema/template.json src/schema/custom-schemas.ts Template",
+    "pre-build": "npm run gen-workflow && npm run gen-template",
     "build": "tsc",
     "format": "prettier --write '**/*.ts'",
     "format-check": "prettier --check '**/*.ts'",
@@ -26,7 +29,8 @@
   "license": "MIT",
   "dependencies": {
     "@actions/core": "^1.10.0",
-    "ajv": "^8.12.0"
+    "ajv": "^8.12.0",
+    "typescript-json-schema": "^0.56.0"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.5",

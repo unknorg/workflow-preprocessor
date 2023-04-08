@@ -1,13 +1,12 @@
 // <a href="https://stackoverflow.com/a/4250408">StackOverflow answer</a>
+import {CircularCheckContext, ElementWrapper, ElementType} from './types'
+import * as fs from 'fs'
+import {load} from 'js-yaml'
 import {
-  CircularCheckContext,
   ExtendedJob,
   ExtendedReusableWorkflowCallJob,
-  Job,
-  TemplateWrapper
-} from './types'
-import fs from 'fs'
-import {load} from 'js-yaml'
+  Job
+} from './schema/custom-schemas'
 
 export const loadYAMLInDirectory = <T extends object>(
   dir: string
@@ -55,32 +54,32 @@ const isPrimitive = (value: unknown): boolean => {
 }
 
 /**
- * Detects circular references which include the given template. <br/>
+ * Detects circular references which include the given element. <br/>
  * The visited part of the context is mutated during the process,
  * but the original context is restored before returning.
- * @param template The template to check
+ * @param element The element to check
  * @param context The context to use, must contain the visited map and the remaining templates
  */
 export const detectCircularReferences = (
-  template: TemplateWrapper,
+  element: ElementWrapper<ElementType>,
   context: CircularCheckContext
-): TemplateWrapper[][] => {
-  const circularReferences: TemplateWrapper[][] = []
-  context.visited.set(template, true)
-  const index = context.remaining.indexOf(template)
+): ElementWrapper<ElementType>[][] => {
+  const circularReferences: ElementWrapper<ElementType>[][] = []
+  context.visited.set(element, true)
+  const index = context.remaining.indexOf(element)
   if (index > -1) {
     context.remaining.splice(index, 1)
   }
-  for (const ref of template.getOutRefs().values()) {
+  for (const ref of element.getOutRefs().values()) {
     if (context.visited.has(ref)) {
-      circularReferences.push([template, ref])
+      circularReferences.push([element, ref])
     } else {
       circularReferences.push(
-        ...detectCircularReferences(ref, context).map(r => [template, ...r])
+        ...detectCircularReferences(ref, context).map(r => [element, ...r])
       )
     }
   }
-  context.visited.set(template, false)
+  context.visited.set(element, false)
   return circularReferences
 }
 
@@ -88,4 +87,9 @@ export const isExtendedJob = (
   job: Job
 ): job is ExtendedJob | ExtendedReusableWorkflowCallJob => {
   return job.hasOwnProperty('extended')
+}
+
+// <a href="https://stackoverflow.com/a/1026087">StackOverflow answer</a>
+export const capitalizeFirstLetter = (string: string): string => {
+  return string.charAt(0).toUpperCase() + string.slice(1)
 }

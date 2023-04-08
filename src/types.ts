@@ -1,92 +1,68 @@
 import {
+  capitalizeFirstLetter,
   combineObjects,
   getFilenameWithoutExtension,
   isExtendedJob
 } from './utils'
 import {
-  GithubWorkflow,
-  NormalJob,
-  ReusableWorkflowCallJob
-} from './schema/github-workflow'
+  Job as JobSchema,
+  Template as TemplateSchema,
+  Workflow as WorkflowSchema
+} from './schema/custom-schemas'
 
-interface ImportWithRef {
-  ref: string
-  path: string
-}
-
-export interface ExtendedJob extends NormalJob {
-  extends: string
-}
-
-export interface ExtendedReusableWorkflowCallJob
-  extends ReusableWorkflowCallJob {
-  extends: string
-}
-
-export type Job =
-  | NormalJob
-  | ReusableWorkflowCallJob
-  | ExtendedJob
-  | ExtendedReusableWorkflowCallJob
-
-export interface Template {
-  imports?: string[] | ImportWithRef[]
-  jobs: {
-    [k: string]: Job
-  }
-}
-
-interface BuildContext<T> {
-  templatesByFilename: Map<string, T>
+export interface BuildContext<T> {
+  elementsByFilename: Map<string, T>
 }
 
 interface Builder<T> {
   buildOuterReferences(context: BuildContext<T>): void
 }
 
-export class TemplateWrapper implements Builder<TemplateWrapper> {
+export type Job = JobSchema
+export type Template = TemplateSchema
+export type Workflow = WorkflowSchema
+export type ElementType = Template | Workflow
+export class ElementWrapper<Element extends ElementType>
+  implements Builder<ElementWrapper<Element>>
+{
   private readonly name: string
-  private readonly template: Template
+  private readonly element: Element
+  private readonly elementType: string
 
-  private readonly outRefs: Map<string, TemplateWrapper> = new Map()
-  private readonly inRefs: Map<string, TemplateWrapper> = new Map()
+  private readonly outRefs: Map<string, ElementWrapper<ElementType>> = new Map()
+  private readonly inRefs: Map<string, ElementWrapper<ElementType>> = new Map()
 
-  private readonly cache: Map<string, Job> = new Map()
-
-  constructor(name: string, template: Template) {
+  constructor(name: string, element: Element, elementType: string) {
     this.name = name
-    this.template = template
+    this.element = element
+    this.elementType = elementType
   }
 
   getName(): string {
     return this.name
   }
 
-  getTemplate(): Template {
-    return this.template
+  getElement(): Element {
+    return this.element
   }
 
-  getOutRefs(): Map<string, TemplateWrapper> {
+  getOutRefs(): Map<string, ElementWrapper<ElementType>> {
     return this.outRefs
   }
 
-  private addOutRef(ref: string, template: TemplateWrapper): void {
+  private addOutRef(ref: string, template: ElementWrapper<ElementType>): void {
     this.outRefs.set(ref, template)
   }
 
-  private addInRef(path: string, template: TemplateWrapper): void {
+  private addInRef(path: string, template: ElementWrapper<ElementType>): void {
     this.inRefs.set(path, template)
   }
 
-  private getObject(identifier: string): Job {
-    if (this.cache.has(identifier)) {
-      return this.cache.get(identifier)!
-    }
-
-    let job = this.template.jobs[identifier]
+  getJob(identifier: string): Job {
+    const job = this.element.jobs[identifier]
     if (!job) {
       throw new Error(
-        `Object '${identifier}' not found in template '${this.name}'`
+        `Object '${identifier}' not found in ${this.elementType} '${this.name}'`
       )
     }
 
@@ -97,29 +73,34 @@ export class TemplateWrapper implements Builder<TemplateWrapper> {
       const template = this.outRefs.get(templateRef)
       if (!template) {
         throw new Error(
-          `Cannot extend '${parentRef}' in template '${this.name}': template '${templateRef}' was not imported`
+          `Cannot extend '${parentRef}' in ${this.elementType}  '${this.name}': '${templateRef}' was not imported`
         )
       }
 
-      const parentObject = template.getObject(objectRef)
-      job = combineObjects(parentObject, job)
+      const parentObject = template.getJob(objectRef)
+      const withoutExtends: Job = {...job, extends: undefined}
+      this.element.jobs[identifier] = combineObjects(
+        parentObject,
+        withoutExtends
+      )
     }
 
-    this.cache.set(identifier, job)
-    return job
+    return this.element.jobs[identifier]
   }
 
   /**
    * Updates the outer references of this template using the given context.
    * @param context The global context
    */
-  buildOuterReferences(context: BuildContext<TemplateWrapper>): void {
-    if (!this.template.imports) {
+  buildOuterReferences(
+    context: BuildContext<ElementWrapper<ElementType>>
+  ): void {
+    if (!this.element.imports) {
       // No imports, nothing to do
       return
     }
 
-    for (const imported of this.template.imports) {
+    for (const imported of this.element.imports) {
       let templateName: string
       if (typeof imported === 'string') {
         // Import without ref, defaults to the filename
@@ -130,9 +111,13 @@ export class TemplateWrapper implements Builder<TemplateWrapper> {
       }
       templateName = getFilenameWithoutExtension(templateName)
 
-      const template = context.templatesByFilename.get(templateName)
+      const template = context.elementsByFilename.get(templateName)
       if (!template) {
-        throw new Error(`Template '${templateName}' not found`)
+        throw new Error(
+          `${capitalizeFirstLetter(
+            this.elementType
+          )} '${templateName}' not found`
+        )
       }
 
       this.addOutRef(templateName, template)
@@ -141,14 +126,10 @@ export class TemplateWrapper implements Builder<TemplateWrapper> {
   }
 }
 
-export interface CircularCheckContext {
-  visited: Map<TemplateWrapper, boolean>
-  remaining: TemplateWrapper[]
-}
+export type TemplateWrapper = ElementWrapper<Template>
+export type WorkflowWrapper = ElementWrapper<Workflow>
 
-export interface Workflow extends GithubWorkflow {
-  imports?: string[] | ImportWithRef[]
-  jobs: {
-    [k: string]: Job
-  }
+export interface CircularCheckContext {
+  visited: Map<ElementWrapper<Template | Workflow>, boolean>
+  remaining: ElementWrapper<Template | Workflow>[]
 }

@@ -1,6 +1,6 @@
-import {Template, TemplateWrapper} from './types'
+import {ElementWrapper, Template, TemplateWrapper} from './types'
 import {get as getConfig} from './config'
-import {validateBuiltTemplates, validateTemplate} from './validation'
+import {validateTemplate} from './validation'
 import {loadYAMLInDirectory} from './utils'
 
 function loadTemplates(): Map<string, Template> {
@@ -25,12 +25,12 @@ function buildTemplates(
 ): Map<string, TemplateWrapper> {
   const templateWrappers = new Map<string, TemplateWrapper>()
   for (const [filename, template] of templates) {
-    const templateWrapper = new TemplateWrapper(filename, template)
+    const templateWrapper = new ElementWrapper(filename, template, 'template')
     templateWrappers.set(filename, templateWrapper)
   }
 
   const buildContext = {
-    templatesByFilename: templateWrappers
+    elementsByFilename: templateWrappers
   }
 
   for (const wrapper of templateWrappers.values()) {
@@ -40,10 +40,8 @@ function buildTemplates(
   return templateWrappers
 }
 
-export function processTemplates(): Map<string, TemplateWrapper> {
+export function load(): Map<string, TemplateWrapper> {
   const templates = loadTemplates()
   validateTemplates(templates)
-  const built = buildTemplates(templates)
-  validateBuiltTemplates([...built.values()])
-  return built
+  return buildTemplates(templates)
 }

@@ -1,7 +1,8 @@
 const defaultOptions = {
   // The default options
   templatesDir: './src/templates',
-  workflowsDir: './src'
+  workflowsDir: './src',
+  generatedDir: './generated'
 }
 
 type Options = keyof typeof defaultOptions

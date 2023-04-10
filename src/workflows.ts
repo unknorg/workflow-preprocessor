@@ -39,9 +39,10 @@ function buildWrappers(
   }
 
   const buildContext: BuildContext<ElementWrapper<ElementType>> = {
-    elementsByFilename: {
-      ...workflowWrappers
-    }
+    // Creating a new map from workflowWrappers so that we won't mutate it
+    elementsByFilename: new Map<string, ElementWrapper<ElementType>>(
+      workflowWrappers
+    )
   }
   const templatesDir = getConfig('templatesDir')
   for (const [filename, template] of templates) {

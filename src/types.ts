@@ -114,9 +114,9 @@ export class ElementWrapper<Element extends ElementType>
       const template = context.elementsByFilename.get(templateName)
       if (!template) {
         throw new Error(
-          `${capitalizeFirstLetter(
-            this.elementType
-          )} '${templateName}' not found`
+          `Element '${templateName}' not found, available elements: ${Array.from(
+            context.elementsByFilename.keys()
+          ).join(', ')}`
         )
       }
 

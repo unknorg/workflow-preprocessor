@@ -1,25 +1,39 @@
 // <a href="https://stackoverflow.com/a/4250408">StackOverflow answer</a>
 import {CircularCheckContext, ElementWrapper, ElementType} from './types'
 import * as fs from 'fs'
-import {load} from 'js-yaml'
+import {dump, load} from 'js-yaml'
 import {
   ExtendedJob,
   ExtendedReusableWorkflowCallJob,
   Job
 } from './schema/custom-schemas'
+import {get as getConfig} from './config'
 
 export const loadYAMLInDirectory = <T extends object>(
   dir: string
 ): Map<string, T> => {
   const objects = new Map<string, T>()
-  for (const filename of fs.readdirSync(dir)) {
-    const buffer = fs.readFileSync(`${dir}/${filename}`, 'utf8')
+  for (const file of fs.readdirSync(dir, {
+    withFileTypes: true
+  })) {
+    if (file.isDirectory()) {
+      continue
+    }
+    const buffer = fs.readFileSync(`${dir}/${file.name}`, 'utf8')
     const obj = load(buffer) as T
     // Not possible to have 2 files with the same name, so no need to check if the key already exists
-    const withoutExtension = getFilenameWithoutExtension(filename)
+    const withoutExtension = getFilenameWithoutExtension(file.name)
     objects.set(withoutExtension, obj)
   }
   return objects
+}
+
+export const writeYAML = (filename: string, obj: object): void => {
+  const yaml = dump(obj)
+  const generatedDir = getConfig('generatedDir')
+  fs.mkdirSync(generatedDir, {recursive: true})
+  const path = `${generatedDir}/${filename}.yml`
+  fs.writeFileSync(path, yaml, 'utf8')
 }
 
 export const getFilenameWithoutExtension = (filename: string): string => {

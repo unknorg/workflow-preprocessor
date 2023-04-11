@@ -24,9 +24,13 @@ function buildTemplates(
   templates: Map<string, Template>
 ): Map<string, TemplateWrapper> {
   const templateWrappers = new Map<string, TemplateWrapper>()
-  for (const [filename, template] of templates) {
-    const templateWrapper = new ElementWrapper(filename, template, 'template')
-    templateWrappers.set(filename, templateWrapper)
+  for (const [absolutePath, template] of templates) {
+    const templateWrapper = new ElementWrapper(
+      absolutePath,
+      template,
+      'template'
+    )
+    templateWrappers.set(absolutePath, templateWrapper)
   }
 
   const buildContext = {

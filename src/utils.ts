@@ -1,4 +1,3 @@
-// <a href="https://stackoverflow.com/a/4250408">StackOverflow answer</a>
 import {CircularCheckContext, ElementWrapper, ElementType} from './types'
 import * as fs from 'fs'
 import {dump, load} from 'js-yaml'
@@ -8,6 +7,7 @@ import {
   Job
 } from './schema/custom-schemas'
 import {get as getConfig} from './config'
+import path from 'path'
 
 export const loadYAMLInDirectory = <T extends object>(
   dir: string
@@ -19,11 +19,10 @@ export const loadYAMLInDirectory = <T extends object>(
     if (file.isDirectory()) {
       continue
     }
-    const buffer = fs.readFileSync(`${dir}/${file.name}`, 'utf8')
+    const fullPath = path.resolve(dir, file.name)
+    const buffer = fs.readFileSync(fullPath, 'utf8')
     const obj = load(buffer) as T
-    // Not possible to have 2 files with the same name, so no need to check if the key already exists
-    const withoutExtension = getFilenameWithoutExtension(file.name)
-    objects.set(withoutExtension, obj)
+    objects.set(fullPath, obj)
   }
   return objects
 }
@@ -31,13 +30,14 @@ export const loadYAMLInDirectory = <T extends object>(
 export const writeYAML = (filename: string, obj: object): void => {
   const yaml = dump(obj)
   const generatedDir = getConfig('generatedDir')
+  const generatedYmlPath = path.resolve(generatedDir, `${filename}.yml`)
   fs.mkdirSync(generatedDir, {recursive: true})
-  const path = `${generatedDir}/${filename}.yml`
-  fs.writeFileSync(path, yaml, 'utf8')
+  fs.writeFileSync(generatedYmlPath, yaml, 'utf8')
 }
 
-export const getFilenameWithoutExtension = (filename: string): string => {
-  return filename.replace(/\.[^/.]+$/, '')
+// <a href="https://stackoverflow.com/a/4250408">StackOverflow answer</a>
+export const getFilenameWithoutExtension = (filePath: string): string => {
+  return path.basename(filePath).replace(/\.[^/.]+$/, '')
 }
 
 export const combineObjects = <T extends object>(

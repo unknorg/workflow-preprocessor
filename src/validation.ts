@@ -64,7 +64,7 @@ export const validateNoCircularRefs = (
   if (circularRefs.length > 0) {
     throw new Error(
       `Circular references detected: ${circularRefs
-        .map(refs => refs.map(ref => ref.getName()).join(' -> '))
+        .map(refs => refs.map(ref => ref.getAbsolutePath()).join(' -> '))
         .join(', ')}`
     )
   }

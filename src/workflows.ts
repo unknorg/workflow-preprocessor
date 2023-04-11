@@ -7,7 +7,7 @@ import {
   WorkflowWrapper
 } from './types'
 import {get as getConfig} from './config'
-import {loadYAMLInDirectory} from './utils'
+import {getFilenameWithoutExtension, loadYAMLInDirectory} from './utils'
 import {validateWorkflow} from './validation'
 import {GithubWorkflow} from './schema/github-workflow'
 
@@ -33,9 +33,13 @@ function buildWrappers(
   templates: Map<string, TemplateWrapper>
 ): Map<string, WorkflowWrapper> {
   const workflowWrappers = new Map<string, WorkflowWrapper>()
-  for (const [filename, workflow] of workflows) {
-    const workflowWrapper = new ElementWrapper(filename, workflow, 'workflow')
-    workflowWrappers.set(filename, workflowWrapper)
+  for (const [absolutePath, workflow] of workflows) {
+    const workflowWrapper = new ElementWrapper(
+      absolutePath,
+      workflow,
+      'workflow'
+    )
+    workflowWrappers.set(absolutePath, workflowWrapper)
   }
 
   const buildContext: BuildContext<ElementWrapper<ElementType>> = {
@@ -44,9 +48,8 @@ function buildWrappers(
       workflowWrappers
     )
   }
-  const templatesDir = getConfig('templatesDir')
-  for (const [filename, template] of templates) {
-    buildContext.elementsByFilename.set(`${templatesDir}/${filename}`, template)
+  for (const [absolutePath, template] of templates) {
+    buildContext.elementsByFilename.set(absolutePath, template)
   }
 
   for (const wrapper of workflowWrappers.values()) {
@@ -79,7 +82,10 @@ export function buildWorkflows(
   workflows: WorkflowWrapper[]
 ): Map<string, GithubWorkflow> {
   return workflows.reduce((map, workflow) => {
-    map.set(workflow.getName(), buildWorkflow(workflow))
+    map.set(
+      getFilenameWithoutExtension(workflow.getAbsolutePath()),
+      buildWorkflow(workflow)
+    )
     return map
   }, new Map<string, GithubWorkflow>())
 }

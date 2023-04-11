@@ -9,6 +9,7 @@ import {
   Template as TemplateSchema,
   Workflow as WorkflowSchema
 } from './schema/custom-schemas'
+import path from 'path'
 
 export interface BuildContext<T> {
   elementsByFilename: Map<string, T>
@@ -25,21 +26,21 @@ export type ElementType = Template | Workflow
 export class ElementWrapper<Element extends ElementType>
   implements Builder<ElementWrapper<Element>>
 {
-  private readonly name: string
+  private readonly absolutePath: string
   private readonly element: Element
   private readonly elementType: string
 
   private readonly outRefs: Map<string, ElementWrapper<ElementType>> = new Map()
   private readonly inRefs: Map<string, ElementWrapper<ElementType>> = new Map()
 
-  constructor(name: string, element: Element, elementType: string) {
-    this.name = name
+  constructor(absolutePath: string, element: Element, elementType: string) {
+    this.absolutePath = absolutePath
     this.element = element
     this.elementType = elementType
   }
 
-  getName(): string {
-    return this.name
+  getAbsolutePath(): string {
+    return this.absolutePath
   }
 
   getElement(): Element {
@@ -62,7 +63,7 @@ export class ElementWrapper<Element extends ElementType>
     const job = this.element.jobs[identifier]
     if (!job) {
       throw new Error(
-        `Object '${identifier}' not found in ${this.elementType} '${this.name}'`
+        `Object '${identifier}' not found in ${this.elementType} '${this.absolutePath}'`
       )
     }
 
@@ -73,7 +74,7 @@ export class ElementWrapper<Element extends ElementType>
       const template = this.outRefs.get(templateRef)
       if (!template) {
         throw new Error(
-          `Cannot extend '${parentRef}' in ${this.elementType}  '${this.name}': '${templateRef}' was not imported`
+          `Cannot extend '${parentRef}' in ${this.elementType}  '${this.absolutePath}': '${templateRef}' was not imported`
         )
       }
 
@@ -101,27 +102,36 @@ export class ElementWrapper<Element extends ElementType>
     }
 
     for (const imported of this.element.imports) {
-      let templateName: string
+      let relativePath: string
+      let refName: string
       if (typeof imported === 'string') {
-        // Import without ref, defaults to the filename
-        templateName = imported
+        // Import without ref, defaults to the path
+        relativePath = imported
+        refName = getFilenameWithoutExtension(imported)
       } else {
         // Import with path
-        templateName = imported.path
+        relativePath = imported.path
+        refName = imported.ref
       }
-      templateName = getFilenameWithoutExtension(templateName)
+      const absolutePath = path.resolve(
+        path.dirname(this.absolutePath),
+        relativePath
+      )
 
-      const template = context.elementsByFilename.get(templateName)
+      const template = context.elementsByFilename.get(absolutePath)
       if (!template) {
         throw new Error(
-          `Element '${templateName}' not found, available elements: ${Array.from(
+          `Element '${absolutePath}' not found, available elements: ${Array.from(
             context.elementsByFilename.keys()
           ).join(', ')}`
         )
       }
 
-      this.addOutRef(templateName, template)
-      template.addInRef(this.name, this)
+      if (this.outRefs.has(refName)) {
+        throw new Error(`Import reference '${refName}'`)
+      }
+      this.addOutRef(refName, template)
+      template.addInRef(this.absolutePath, this)
     }
   }
 }

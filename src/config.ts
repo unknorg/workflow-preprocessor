@@ -16,3 +16,8 @@ export const set = (option: Options, value: string): void => {
 export const get = (option: Options): string => {
   return defaultOptions[option]
 }
+
+// Testing
+export const _testing = {
+  defaultOptions
+}

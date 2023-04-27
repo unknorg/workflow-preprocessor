@@ -5,7 +5,7 @@ import {
   Workflow,
   ElementType
 } from './types'
-import {coldObject, detectCircularReferences} from './utils/misc'
+import {coldObject, detectCircularReferences, groupBy} from './utils/misc'
 import {GithubWorkflow} from './schema/github-workflow'
 import Ajv, {ValidateFunction} from 'ajv'
 import fs from 'fs'
@@ -105,11 +105,14 @@ export const validateGithubWorkflow = (
 }
 
 const formatErrorMessage = (validator: ValidateFunction<unknown>): string => {
-  return (
-    validator.errors
-      ?.map(error => {
-        return `${error.keyword}: ${error.message}`
-      })
-      .join(', ') ?? ''
-  )
+  return [
+    ...groupBy(validator.errors ?? [], error => error.instancePath).entries()
+  ]
+    .map(
+      ([instancePath, errors]) =>
+        `Instance Path '${instancePath}': ${errors
+          .map(error => error.message)
+          .join(', ')}`
+    )
+    .join('\n')
 }

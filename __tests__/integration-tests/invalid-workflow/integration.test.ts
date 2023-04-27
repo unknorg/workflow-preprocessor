@@ -5,7 +5,7 @@ import {run} from '../../../src/main'
 beforeAll(() => integrationTestPre(__dirname))
 afterAll(integrationTestPost)
 
-test('invalid template', async () => {
+test('invalid workflow', async () => {
   let error: Error | undefined = undefined
   try {
     await run()
@@ -16,8 +16,7 @@ test('invalid template', async () => {
   expect(error).toBeDefined()
   expect(error?.message).toMatch(
     new RegExp(
-      `Invalid template (.*)template.yml: Invalid template: Instance Path '/jobs/job1/steps/0': must have required property 'uses', must have required property 'run', must match a schema in anyOf
-Instance Path '/jobs/job1': must have required property 'uses', must have required property 'extends', must have required property 'extends', must match a schema in anyOf`
+      `Invalid workflow (.*)workflow.yml: Invalid workflow: Instance Path '/jobs/fail': must have required property 'runs-on', must have required property 'uses', must have required property 'extends', must have required property 'extends', must match a schema in anyOf`
     )
   )
 })

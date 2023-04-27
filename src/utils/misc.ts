@@ -91,3 +91,13 @@ export const isExtendedJob = (
 export const capitalizeFirstLetter = (string: string): string => {
   return string.charAt(0).toUpperCase() + string.slice(1)
 }
+
+// TODO: to test
+export const groupBy = <T, K>(arr: T[], key: (obj: T) => K): Map<K, T[]> => {
+  return arr.reduce((map, item) => {
+    const k = key(item)
+    const collection = map.get(k) ?? []
+    collection.push(item)
+    return map.set(k, collection)
+  }, new Map<K, T[]>())
+}

@@ -31,6 +31,6 @@ test('accept valid templates', async () => {
 test('reject invalid templates', async () => {
   const tested = loadYAMLResource<Template>('invalid-template')
   expect(() => validateTemplate(tested)).toThrow(
-    new Error('Invalid template: must be object')
+    new Error("Invalid template: Instance Path '': must be object")
   )
 })

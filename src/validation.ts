@@ -9,6 +9,7 @@ import {detectCircularReferences} from './utils'
 import {GithubWorkflow} from './schema/github-workflow'
 import Ajv, {ValidateFunction} from 'ajv'
 import fs from 'fs'
+import {trace} from './logging'
 
 const ajv = new Ajv()
 function createValidator<T>(jsonSchemaPath: string): ValidateFunction<T> {
@@ -20,6 +21,7 @@ const validateWorkflowSchema = createValidator<Workflow>('schema/workflow.json')
 const validateTemplateSchema = createValidator<Template>('schema/template.json')
 
 export const validateTemplate = (template: Template): void => {
+  trace('validation.ts#validateTemplate()')
   // TODO: Forbid using reusableJobs in templates
   // TODO: Forbid having duplicate names in jobs
   if (!validateTemplateSchema(template)) {
@@ -32,6 +34,7 @@ export const validateTemplate = (template: Template): void => {
 }
 
 export const validateWorkflow = (content: Workflow): void => {
+  trace('validation.ts#validateWorkflow()')
   if (!validateWorkflowSchema(content)) {
     throw new Error(
       `Invalid workflow: ${validateWorkflowSchema.errors
@@ -44,6 +47,7 @@ export const validateWorkflow = (content: Workflow): void => {
 export const validateNoCircularRefs = (
   elements: ElementWrapper<ElementType>[]
 ): void => {
+  trace('validation.ts#validateNoCircularRefs()')
   const visitedMap = elements.reduce((map, template) => {
     map.set(template, false)
     return map

@@ -100,7 +100,7 @@ export const detectCircularReferences = (
 export const isExtendedJob = (
   job: Job
 ): job is ExtendedJob | ExtendedReusableWorkflowCallJob => {
-  return job.hasOwnProperty('extended')
+  return job.hasOwnProperty('extends')
 }
 
 // <a href="https://stackoverflow.com/a/1026087">StackOverflow answer</a>

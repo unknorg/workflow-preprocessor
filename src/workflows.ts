@@ -10,6 +10,7 @@ import {get as getConfig} from './config'
 import {getFilenameWithoutExtension, loadYAMLInDirectory} from './utils'
 import {validateWorkflow} from './validation'
 import {GithubWorkflow} from './schema/github-workflow'
+import {debug, info, trace} from './logging'
 
 function loadWorkflows(): Map<string, Workflow> {
   const workflowPath = getConfig('workflowsDir')
@@ -62,16 +63,19 @@ function buildWrappers(
 export function load(
   templates: Map<string, TemplateWrapper>
 ): Map<string, WorkflowWrapper> {
+  trace('workflows.ts#load()')
   const workflows = loadWorkflows()
   validateWorkflows(workflows)
   return buildWrappers(workflows, templates)
 }
 
 function buildWorkflow(workflow: WorkflowWrapper): GithubWorkflow {
+  info(`Building ${workflow.getAbsolutePath()}`)
   const cloned: Workflow = structuredClone(workflow.getElement())
   cloned.imports = undefined
 
   for (const jobName in workflow.getElement().jobs) {
+    debug(`Patching job ${jobName}`)
     cloned.jobs[jobName] = workflow.getJob(jobName)
   }
 
@@ -81,6 +85,7 @@ function buildWorkflow(workflow: WorkflowWrapper): GithubWorkflow {
 export function buildWorkflows(
   workflows: WorkflowWrapper[]
 ): Map<string, GithubWorkflow> {
+  trace('workflows.ts#buildWorkflows()')
   return workflows.reduce((map, workflow) => {
     map.set(
       getFilenameWithoutExtension(workflow.getAbsolutePath()),

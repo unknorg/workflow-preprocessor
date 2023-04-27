@@ -2,6 +2,7 @@ import {ElementWrapper, Template, TemplateWrapper} from './types'
 import {get as getConfig} from './config'
 import {validateTemplate} from './validation'
 import {loadYAMLInDirectory} from './utils'
+import {trace} from './logging'
 
 function loadTemplates(): Map<string, Template> {
   const templatePath = getConfig('templatesDir')
@@ -45,6 +46,7 @@ function buildTemplates(
 }
 
 export function load(): Map<string, TemplateWrapper> {
+  trace('templates.ts#load()')
   const templates = loadTemplates()
   validateTemplates(templates)
   return buildTemplates(templates)

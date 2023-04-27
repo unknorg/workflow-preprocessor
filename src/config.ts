@@ -2,7 +2,9 @@ const defaultOptions = {
   // The default options
   templatesDir: './src/templates',
   workflowsDir: './src',
-  generatedDir: './generated'
+  generatedDir: './generated',
+  logLevel: 'trace',
+  useCustomLogger: 'false'
 }
 
 type Options = keyof typeof defaultOptions

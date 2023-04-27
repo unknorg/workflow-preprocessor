@@ -10,6 +10,7 @@ import {
   Workflow as WorkflowSchema
 } from './schema/custom-schemas'
 import path from 'path'
+import {debug} from './logging'
 
 export interface BuildContext<T> {
   elementsByFilename: Map<string, T>
@@ -68,6 +69,7 @@ export class ElementWrapper<Element extends ElementType>
     }
 
     if (isExtendedJob(job)) {
+      debug(`Processing extended job '${identifier}'`)
       const parentRef = job.extends
       const templateRef = parentRef.split('/')[0]
       const objectRef = parentRef.split('/')[1]

@@ -3,16 +3,18 @@ import {load as loadTemplates} from './templates'
 import {buildWorkflows, load as loadWorkflows} from './workflows'
 import {validateNoCircularRefs} from './validation'
 import {writeYAML} from './utils'
+import {info, trace} from './logging'
 
 async function run(): Promise<void> {
   try {
+    trace('main.ts#run()')
     const templates = loadTemplates()
     const workflows = loadWorkflows(templates)
     validateNoCircularRefs([...workflows.values()])
 
     const githubWorkflows = buildWorkflows([...workflows.values()])
     for (const [filename, workflow] of githubWorkflows) {
-      core.info(`Writing ${filename}`)
+      info(`Writing ${filename}`)
       writeYAML(filename, workflow)
     }
 

@@ -7,11 +7,16 @@ require('./sourcemap-register.js');/******/ (() => { // webpackBootstrap
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.get = exports.set = void 0;
+exports._testing = exports.get = exports.set = void 0;
 const defaultOptions = {
     // The default options
     templatesDir: './src/templates',
-    workflowsDir: './src'
+    workflowsDir: './src',
+    schemaDir: './schema',
+    generatedDir: './generated',
+    logLevel: 'trace',
+    useCustomLogger: 'false',
+    dieWhenInvalid: 'true'
 };
 const set = (option, value) => {
     defaultOptions[option] = value;
@@ -21,6 +26,96 @@ const get = (option) => {
     return defaultOptions[option];
 };
 exports.get = get;
+// Testing
+exports._testing = {
+    defaultOptions
+};
+
+
+/***/ }),
+
+/***/ 41:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.trace = exports.debug = exports.info = exports.warn = exports.error = void 0;
+const core_1 = __nccwpck_require__(2186);
+const tslog_1 = __nccwpck_require__(7369);
+const config_1 = __nccwpck_require__(88);
+/** Log Levels:
+ * 0: silly, 1: trace, 2: debug, 3: info, 4: warn, 5: error, 6: fatal.
+ *
+ * Default level: info.
+ */
+function parseLevel(level) {
+    const parsed = [
+        'silly',
+        'trace',
+        'debug',
+        'info',
+        'warn',
+        'error',
+        'fatal'
+    ].indexOf(level);
+    return parsed !== -1 ? parsed : 3;
+}
+let level = undefined;
+const logLevel = () => level !== null && level !== void 0 ? level : (level = parseLevel((0, config_1.get)('logLevel')));
+const isRunningOnRunner = process.env['GITHUB_ACTIONS'] === 'true';
+const useCustomLogger = !isRunningOnRunner || (0, config_1.get)('useCustomLogger').toLowerCase() === 'true';
+let customLogger = undefined;
+if (useCustomLogger) {
+    customLogger = new tslog_1.Logger({
+        minLevel: logLevel()
+    });
+}
+const error = (message) => {
+    if (useCustomLogger) {
+        customLogger === null || customLogger === void 0 ? void 0 : customLogger.error(message);
+    }
+    else {
+        (0, core_1.error)(message);
+    }
+};
+exports.error = error;
+const warn = (message) => {
+    if (useCustomLogger) {
+        customLogger === null || customLogger === void 0 ? void 0 : customLogger.warn(message);
+    }
+    else {
+        (0, core_1.warning)(message);
+    }
+};
+exports.warn = warn;
+const info = (message) => {
+    if (useCustomLogger) {
+        customLogger === null || customLogger === void 0 ? void 0 : customLogger.info(message);
+    }
+    else {
+        (0, core_1.info)(message);
+    }
+};
+exports.info = info;
+const debug = (message) => {
+    if (useCustomLogger) {
+        customLogger === null || customLogger === void 0 ? void 0 : customLogger.debug(message);
+    }
+    else {
+        (0, core_1.debug)(message);
+    }
+};
+exports.debug = debug;
+const trace = (message) => {
+    if (useCustomLogger) {
+        customLogger === null || customLogger === void 0 ? void 0 : customLogger.trace(message);
+    }
+    else {
+        (0, core_1.debug)(`[TRACE] ${message}`);
+    }
+};
+exports.trace = trace;
 
 
 /***/ }),
@@ -63,30 +158,38 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.run = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const templates_1 = __nccwpck_require__(5303);
 const workflows_1 = __nccwpck_require__(2303);
 const validation_1 = __nccwpck_require__(581);
+const utils_1 = __nccwpck_require__(918);
+const logging_1 = __nccwpck_require__(41);
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
+            (0, logging_1.trace)('main.ts#run()');
             const templates = (0, templates_1.load)();
             const workflows = (0, workflows_1.load)(templates);
             (0, validation_1.validateNoCircularRefs)([...workflows.values()]);
             const githubWorkflows = (0, workflows_1.buildWorkflows)([...workflows.values()]);
             for (const [filename, workflow] of githubWorkflows) {
-                core.info(`Writing ${filename}`);
-                console.log(workflow.toString());
+                (0, logging_1.info)(`Writing ${filename}`);
+                (0, utils_1.writeYAML)(filename, workflow);
             }
             core.setOutput('time', new Date().toTimeString());
         }
         catch (error) {
             if (error instanceof Error)
                 core.setFailed(error.message);
+            throw error;
         }
     });
 }
-run();
+exports.run = run;
+if (require.main === require.cache[eval('__filename')]) {
+    run();
+}
 
 
 /***/ }),
@@ -102,6 +205,7 @@ const types_1 = __nccwpck_require__(8164);
 const config_1 = __nccwpck_require__(88);
 const validation_1 = __nccwpck_require__(581);
 const utils_1 = __nccwpck_require__(918);
+const logging_1 = __nccwpck_require__(41);
 function loadTemplates() {
     const templatePath = (0, config_1.get)('templatesDir');
     return (0, utils_1.loadYAMLInDirectory)(templatePath);
@@ -118,9 +222,9 @@ function validateTemplates(templates) {
 }
 function buildTemplates(templates) {
     const templateWrappers = new Map();
-    for (const [filename, template] of templates) {
-        const templateWrapper = new types_1.ElementWrapper(filename, template, 'template');
-        templateWrappers.set(filename, templateWrapper);
+    for (const [absolutePath, template] of templates) {
+        const templateWrapper = new types_1.ElementWrapper(absolutePath, template, 'template');
+        templateWrappers.set(absolutePath, templateWrapper);
     }
     const buildContext = {
         elementsByFilename: templateWrappers
@@ -131,6 +235,7 @@ function buildTemplates(templates) {
     return templateWrappers;
 }
 function load() {
+    (0, logging_1.trace)('templates.ts#load()');
     const templates = loadTemplates();
     validateTemplates(templates);
     return buildTemplates(templates);
@@ -141,23 +246,28 @@ exports.load = load;
 /***/ }),
 
 /***/ 8164:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ElementWrapper = void 0;
 const utils_1 = __nccwpck_require__(918);
+const path_1 = __importDefault(__nccwpck_require__(1017));
+const logging_1 = __nccwpck_require__(41);
 class ElementWrapper {
-    constructor(name, element, elementType) {
+    constructor(absolutePath, element, elementType) {
         this.outRefs = new Map();
         this.inRefs = new Map();
-        this.name = name;
+        this.absolutePath = absolutePath;
         this.element = element;
         this.elementType = elementType;
     }
-    getName() {
-        return this.name;
+    getAbsolutePath() {
+        return this.absolutePath;
     }
     getElement() {
         return this.element;
@@ -168,21 +278,22 @@ class ElementWrapper {
     addOutRef(ref, template) {
         this.outRefs.set(ref, template);
     }
-    addInRef(path, template) {
-        this.inRefs.set(path, template);
+    addInRef($path, template) {
+        this.inRefs.set($path, template);
     }
     getJob(identifier) {
         const job = this.element.jobs[identifier];
         if (!job) {
-            throw new Error(`Object '${identifier}' not found in ${this.elementType} '${this.name}'`);
+            throw new Error(`Object '${identifier}' not found in ${this.elementType} '${this.absolutePath}'`);
         }
         if ((0, utils_1.isExtendedJob)(job)) {
+            (0, logging_1.debug)(`Processing extended job '${identifier}'`);
             const parentRef = job.extends;
             const templateRef = parentRef.split('/')[0];
             const objectRef = parentRef.split('/')[1];
             const template = this.outRefs.get(templateRef);
             if (!template) {
-                throw new Error(`Cannot extend '${parentRef}' in ${this.elementType}  '${this.name}': '${templateRef}' was not imported`);
+                throw new Error(`Cannot extend '${parentRef}' in ${this.elementType}  '${this.absolutePath}': '${templateRef}' was not imported`);
             }
             const parentObject = template.getJob(objectRef);
             const withoutExtends = Object.assign(Object.assign({}, job), { extends: undefined });
@@ -200,22 +311,28 @@ class ElementWrapper {
             return;
         }
         for (const imported of this.element.imports) {
-            let templateName;
+            let relativePath;
+            let refName;
             if (typeof imported === 'string') {
-                // Import without ref, defaults to the filename
-                templateName = imported;
+                // Import without ref, defaults to the path
+                relativePath = imported;
+                refName = (0, utils_1.getFilenameWithoutExtension)(imported);
             }
             else {
                 // Import with path
-                templateName = imported.path;
+                relativePath = imported.path;
+                refName = imported.ref;
             }
-            templateName = (0, utils_1.getFilenameWithoutExtension)(templateName);
-            const template = context.elementsByFilename.get(templateName);
+            const absolutePath = path_1.default.resolve(path_1.default.dirname(this.absolutePath), relativePath);
+            const template = context.elementsByFilename.get(absolutePath);
             if (!template) {
-                throw new Error(`${(0, utils_1.capitalizeFirstLetter)(this.elementType)} '${templateName}' not found`);
+                throw new Error(`Element '${absolutePath}' not found, available elements: ${Array.from(context.elementsByFilename.keys()).join(', ')}`);
             }
-            this.addOutRef(templateName, template);
-            template.addInRef(this.name, this);
+            if (this.outRefs.has(refName)) {
+                throw new Error(`Import reference '${refName}'`);
+            }
+            this.addOutRef(refName, template);
+            template.addInRef(this.absolutePath, this);
         }
     }
 }
@@ -252,24 +369,42 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.capitalizeFirstLetter = exports.isExtendedJob = exports.detectCircularReferences = exports.combineObjects = exports.getFilenameWithoutExtension = exports.loadYAMLInDirectory = void 0;
+exports.coldObject = exports.capitalizeFirstLetter = exports.isExtendedJob = exports.detectCircularReferences = exports.combineObjects = exports.getFilenameWithoutExtension = exports.writeYAML = exports.loadYAMLInDirectory = void 0;
 const fs = __importStar(__nccwpck_require__(7147));
 const js_yaml_1 = __nccwpck_require__(1917);
+const config_1 = __nccwpck_require__(88);
+const path_1 = __importDefault(__nccwpck_require__(1017));
 const loadYAMLInDirectory = (dir) => {
     const objects = new Map();
-    for (const filename of fs.readdirSync(dir)) {
-        const buffer = fs.readFileSync(`${dir}/${filename}`, 'utf8');
+    for (const file of fs.readdirSync(dir, {
+        withFileTypes: true
+    })) {
+        if (file.isDirectory()) {
+            continue;
+        }
+        const fullPath = path_1.default.resolve(dir, file.name);
+        const buffer = fs.readFileSync(fullPath, 'utf8');
         const obj = (0, js_yaml_1.load)(buffer);
-        // Not possible to have 2 files with the same name, so no need to check if the key already exists
-        const withoutExtension = (0, exports.getFilenameWithoutExtension)(filename);
-        objects.set(withoutExtension, obj);
+        objects.set(fullPath, obj);
     }
     return objects;
 };
 exports.loadYAMLInDirectory = loadYAMLInDirectory;
-const getFilenameWithoutExtension = (filename) => {
-    return filename.replace(/\.[^/.]+$/, '');
+const writeYAML = (filename, obj) => {
+    const yaml = (0, js_yaml_1.dump)(obj);
+    const generatedDir = (0, config_1.get)('generatedDir');
+    const generatedYmlPath = path_1.default.resolve(generatedDir, `${filename}.yml`);
+    fs.mkdirSync(generatedDir, { recursive: true });
+    fs.writeFileSync(generatedYmlPath, yaml, 'utf8');
+};
+exports.writeYAML = writeYAML;
+// <a href="https://stackoverflow.com/a/4250408">StackOverflow answer</a>
+const getFilenameWithoutExtension = (filePath) => {
+    return path_1.default.basename(filePath).replace(/\.[^/.]+$/, '');
 };
 exports.getFilenameWithoutExtension = getFilenameWithoutExtension;
 const combineObjects = (original, extension) => {
@@ -280,7 +415,10 @@ const combineObjects = (original, extension) => {
 exports.combineObjects = combineObjects;
 const merge = (obj, toMerge) => {
     for (const key in toMerge) {
-        if (!obj.hasOwnProperty(key)) {
+        if (toMerge[key] === undefined) {
+            delete obj[key];
+        }
+        else if (!obj.hasOwnProperty(key)) {
             obj[key] = toMerge[key];
         }
         else if (isPrimitive(obj[key]) || isPrimitive(toMerge[key])) {
@@ -309,7 +447,7 @@ const detectCircularReferences = (element, context) => {
         context.remaining.splice(index, 1);
     }
     for (const ref of element.getOutRefs().values()) {
-        if (context.visited.has(ref)) {
+        if (context.visited.has(ref) && context.visited.get(ref)) {
             circularReferences.push([element, ref]);
         }
         else {
@@ -321,7 +459,7 @@ const detectCircularReferences = (element, context) => {
 };
 exports.detectCircularReferences = detectCircularReferences;
 const isExtendedJob = (job) => {
-    return job.hasOwnProperty('extended');
+    return job.hasOwnProperty('extends');
 };
 exports.isExtendedJob = isExtendedJob;
 // <a href="https://stackoverflow.com/a/1026087">StackOverflow answer</a>
@@ -329,6 +467,11 @@ const capitalizeFirstLetter = (string) => {
     return string.charAt(0).toUpperCase() + string.slice(1);
 };
 exports.capitalizeFirstLetter = capitalizeFirstLetter;
+const coldObject = (creator) => {
+    let cache = undefined;
+    return () => cache !== null && cache !== void 0 ? cache : (cache = creator());
+};
+exports.coldObject = coldObject;
 
 
 /***/ }),
@@ -346,30 +489,45 @@ exports.validateGithubWorkflow = exports.validateNoCircularRefs = exports.valida
 const utils_1 = __nccwpck_require__(918);
 const ajv_1 = __importDefault(__nccwpck_require__(2426));
 const fs_1 = __importDefault(__nccwpck_require__(7147));
-const ajv = new ajv_1.default();
+const logging_1 = __nccwpck_require__(41);
+const path_1 = __importDefault(__nccwpck_require__(1017));
+const config_1 = __nccwpck_require__(88);
+const ajv = new ajv_1.default({
+    logger: {
+        warn: () => { },
+        error: (args) => (0, logging_1.error)(args.join(' ')),
+        log: (args) => (0, logging_1.info)(args.join(' '))
+    }
+});
 function createValidator(jsonSchemaPath) {
     const schema = JSON.parse(fs_1.default.readFileSync(jsonSchemaPath, 'utf8'));
     return ajv.compile(schema);
 }
-const validateWorkflowSchema = createValidator('schema/workflow.json');
-const validateTemplateSchema = createValidator('schema/template.json');
+const validateWorkflowSchema = (0, utils_1.coldObject)(() => createValidator(path_1.default.join((0, config_1.get)('schemaDir'), 'workflow.json')));
+const validateTemplateSchema = (0, utils_1.coldObject)(() => createValidator(path_1.default.join((0, config_1.get)('schemaDir'), 'template.json')));
+const validateGithubWorkflowSchema = (0, utils_1.coldObject)(() => createValidator(path_1.default.join((0, config_1.get)('schemaDir'), 'githubworkflow.json')));
 const validateTemplate = (template) => {
     var _a;
+    (0, logging_1.trace)('validation.ts#validateTemplate()');
     // TODO: Forbid using reusableJobs in templates
     // TODO: Forbid having duplicate names in jobs
-    if (!validateTemplateSchema(template)) {
-        throw new Error(`Invalid template: ${(_a = validateTemplateSchema.errors) === null || _a === void 0 ? void 0 : _a.map(error => error.message).join(', ')}`);
+    if (!validateTemplateSchema()(template)) {
+        throw new Error(`Invalid template: ${(_a = validateTemplateSchema()
+            .errors) === null || _a === void 0 ? void 0 : _a.map(error => error.message).join(', ')}`);
     }
 };
 exports.validateTemplate = validateTemplate;
 const validateWorkflow = (content) => {
     var _a;
-    if (!validateWorkflowSchema(content)) {
-        throw new Error(`Invalid workflow: ${(_a = validateWorkflowSchema.errors) === null || _a === void 0 ? void 0 : _a.map(error => error.message).join(', ')}`);
+    (0, logging_1.trace)('validation.ts#validateWorkflow()');
+    if (!validateWorkflowSchema()(content)) {
+        throw new Error(`Invalid workflow: ${(_a = validateWorkflowSchema()
+            .errors) === null || _a === void 0 ? void 0 : _a.map(error => error.message).join(', ')}`);
     }
 };
 exports.validateWorkflow = validateWorkflow;
 const validateNoCircularRefs = (elements) => {
+    (0, logging_1.trace)('validation.ts#validateNoCircularRefs()');
     const visitedMap = elements.reduce((map, template) => {
         map.set(template, false);
         return map;
@@ -386,12 +544,20 @@ const validateNoCircularRefs = (elements) => {
     }
     if (circularRefs.length > 0) {
         throw new Error(`Circular references detected: ${circularRefs
-            .map(refs => refs.map(ref => ref.getName()).join(' -> '))
+            .map(refs => refs.map(ref => ref.getAbsolutePath()).join(' -> '))
             .join(', ')}`);
     }
 };
 exports.validateNoCircularRefs = validateNoCircularRefs;
-const validateGithubWorkflow = (content) => { };
+const validateGithubWorkflow = (content) => {
+    var _a;
+    (0, logging_1.trace)('validation.ts#validateWorkflow()');
+    if (!validateGithubWorkflowSchema()(content)) {
+        throw new Error(`Invalid workflow: ${(_a = validateGithubWorkflowSchema()
+            .errors) === null || _a === void 0 ? void 0 : _a.map(error => error.message).join(', ')}`);
+    }
+    return true;
+};
 exports.validateGithubWorkflow = validateGithubWorkflow;
 
 
@@ -408,6 +574,7 @@ const types_1 = __nccwpck_require__(8164);
 const config_1 = __nccwpck_require__(88);
 const utils_1 = __nccwpck_require__(918);
 const validation_1 = __nccwpck_require__(581);
+const logging_1 = __nccwpck_require__(41);
 function loadWorkflows() {
     const workflowPath = (0, config_1.get)('workflowsDir');
     return (0, utils_1.loadYAMLInDirectory)(workflowPath);
@@ -424,16 +591,16 @@ function validateWorkflows(workflows) {
 }
 function buildWrappers(workflows, templates) {
     const workflowWrappers = new Map();
-    for (const [filename, workflow] of workflows) {
-        const workflowWrapper = new types_1.ElementWrapper(filename, workflow, 'workflow');
-        workflowWrappers.set(filename, workflowWrapper);
+    for (const [absolutePath, workflow] of workflows) {
+        const workflowWrapper = new types_1.ElementWrapper(absolutePath, workflow, 'workflow');
+        workflowWrappers.set(absolutePath, workflowWrapper);
     }
     const buildContext = {
-        elementsByFilename: Object.assign({}, workflowWrappers)
+        // Creating a new map from workflowWrappers so that we won't mutate it
+        elementsByFilename: new Map(workflowWrappers)
     };
-    const templatesDir = (0, config_1.get)('templatesDir');
-    for (const [filename, template] of templates) {
-        buildContext.elementsByFilename.set(`${templatesDir}/${filename}`, template);
+    for (const [absolutePath, template] of templates) {
+        buildContext.elementsByFilename.set(absolutePath, template);
     }
     for (const wrapper of workflowWrappers.values()) {
         wrapper.buildOuterReferences(buildContext);
@@ -441,24 +608,35 @@ function buildWrappers(workflows, templates) {
     return workflowWrappers;
 }
 function load(templates) {
+    (0, logging_1.trace)('workflows.ts#load()');
     const workflows = loadWorkflows();
     validateWorkflows(workflows);
     return buildWrappers(workflows, templates);
 }
 exports.load = load;
 function buildWorkflow(workflow) {
+    (0, logging_1.info)(`Building ${workflow.getAbsolutePath()}`);
     const cloned = structuredClone(workflow.getElement());
-    cloned.imports = undefined;
+    delete cloned.imports;
     for (const jobName in workflow.getElement().jobs) {
+        (0, logging_1.debug)(`Patching job ${jobName}`);
         cloned.jobs[jobName] = workflow.getJob(jobName);
+    }
+    try {
+        (0, validation_1.validateGithubWorkflow)(cloned);
+    }
+    catch (error) {
+        const toThrow = new Error(`Error while building '${workflow.getAbsolutePath()}': ${error.message}`);
+        if ((0, config_1.get)('dieWhenInvalid').toLowerCase() === 'true') {
+            throw toThrow;
+        }
+        (0, logging_1.warn)(toThrow.message);
     }
     return cloned;
 }
 function buildWorkflows(workflows) {
-    return workflows.reduce((map, workflow) => {
-        map.set(workflow.getName(), buildWorkflow(workflow));
-        return map;
-    }, new Map());
+    (0, logging_1.trace)('workflows.ts#buildWorkflows()');
+    return workflows.reduce((map, workflow) => map.set((0, utils_1.getFilenameWithoutExtension)(workflow.getAbsolutePath()), buildWorkflow(workflow)), new Map());
 }
 exports.buildWorkflows = buildWorkflows;
 
@@ -14641,6 +14819,633 @@ module.exports = require("tls");
 
 "use strict";
 module.exports = require("util");
+
+/***/ }),
+
+/***/ 8589:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.BaseLogger = void 0;
+const index_js_1 = __nccwpck_require__(4623);
+const formatTemplate_js_1 = __nccwpck_require__(9448);
+const formatNumberAddZeros_js_1 = __nccwpck_require__(2420);
+__exportStar(__nccwpck_require__(9260), exports);
+class BaseLogger {
+    constructor(settings, logObj, stackDepthLevel = 4) {
+        this.logObj = logObj;
+        this.stackDepthLevel = stackDepthLevel;
+        const isBrowser = ![typeof window, typeof document].includes("undefined");
+        const isNode = Object.prototype.toString.call(typeof process !== "undefined" ? process : 0) === "[object process]";
+        this.runtime = isBrowser ? "browser" : isNode ? "nodejs" : "unknown";
+        const isBrowserBlinkEngine = isBrowser ? ((window?.["chrome"] || (window.Intl && Intl?.["v8BreakIterator"])) && "CSS" in window) != null : false;
+        const isSafari = isBrowser ? /^((?!chrome|android).)*safari/i.test(navigator?.userAgent) : false;
+        this.stackDepthLevel = isSafari ? 4 : this.stackDepthLevel;
+        this.settings = {
+            type: settings?.type ?? "pretty",
+            name: settings?.name,
+            parentNames: settings?.parentNames,
+            minLevel: settings?.minLevel ?? 0,
+            argumentsArrayName: settings?.argumentsArrayName,
+            hideLogPositionForProduction: settings?.hideLogPositionForProduction ?? false,
+            prettyLogTemplate: settings?.prettyLogTemplate ??
+                "{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}\t{{logLevelName}}\t{{filePathWithLine}}{{nameWithDelimiterPrefix}}\t",
+            prettyErrorTemplate: settings?.prettyErrorTemplate ?? "\n{{errorName}} {{errorMessage}}\nerror stack:\n{{errorStack}}",
+            prettyErrorStackTemplate: settings?.prettyErrorStackTemplate ?? "  • {{fileName}}\t{{method}}\n\t{{filePathWithLine}}",
+            prettyErrorParentNamesSeparator: settings?.prettyErrorParentNamesSeparator ?? ":",
+            prettyErrorLoggerNameDelimiter: settings?.prettyErrorLoggerNameDelimiter ?? "\t",
+            stylePrettyLogs: settings?.stylePrettyLogs ?? true,
+            prettyLogTimeZone: settings?.prettyLogTimeZone ?? "UTC",
+            prettyLogStyles: settings?.prettyLogStyles ?? {
+                logLevelName: {
+                    "*": ["bold", "black", "bgWhiteBright", "dim"],
+                    SILLY: ["bold", "white"],
+                    TRACE: ["bold", "whiteBright"],
+                    DEBUG: ["bold", "green"],
+                    INFO: ["bold", "blue"],
+                    WARN: ["bold", "yellow"],
+                    ERROR: ["bold", "red"],
+                    FATAL: ["bold", "redBright"],
+                },
+                dateIsoStr: "white",
+                filePathWithLine: "white",
+                name: ["white", "bold"],
+                nameWithDelimiterPrefix: ["white", "bold"],
+                nameWithDelimiterSuffix: ["white", "bold"],
+                errorName: ["bold", "bgRedBright", "whiteBright"],
+                fileName: ["yellow"],
+                fileNameWithLine: "white",
+            },
+            prettyInspectOptions: settings?.prettyInspectOptions ?? {
+                colors: true,
+                compact: false,
+                depth: Infinity,
+            },
+            metaProperty: settings?.metaProperty ?? "_meta",
+            maskPlaceholder: settings?.maskPlaceholder ?? "[***]",
+            maskValuesOfKeys: settings?.maskValuesOfKeys ?? ["password"],
+            maskValuesOfKeysCaseInsensitive: settings?.maskValuesOfKeysCaseInsensitive ?? false,
+            maskValuesRegEx: settings?.maskValuesRegEx,
+            prefix: [...(settings?.prefix ?? [])],
+            attachedTransports: [...(settings?.attachedTransports ?? [])],
+            overwrite: {
+                mask: settings?.overwrite?.mask,
+                toLogObj: settings?.overwrite?.toLogObj,
+                addMeta: settings?.overwrite?.addMeta,
+                formatMeta: settings?.overwrite?.formatMeta,
+                formatLogObj: settings?.overwrite?.formatLogObj,
+                transportFormatted: settings?.overwrite?.transportFormatted,
+                transportJSON: settings?.overwrite?.transportJSON,
+            },
+        };
+        this.settings.stylePrettyLogs = this.settings.stylePrettyLogs && isBrowser && !isBrowserBlinkEngine ? false : this.settings.stylePrettyLogs;
+    }
+    log(logLevelId, logLevelName, ...args) {
+        if (logLevelId < this.settings.minLevel) {
+            return;
+        }
+        const logArgs = [...this.settings.prefix, ...args];
+        const maskedArgs = this.settings.overwrite?.mask != null
+            ? this.settings.overwrite?.mask(logArgs)
+            : this.settings.maskValuesOfKeys != null && this.settings.maskValuesOfKeys.length > 0
+                ? this._mask(logArgs)
+                : logArgs;
+        const thisLogObj = this.logObj != null ? this._recursiveCloneAndExecuteFunctions(this.logObj) : undefined;
+        const logObj = this.settings.overwrite?.toLogObj != null ? this.settings.overwrite?.toLogObj(maskedArgs, thisLogObj) : this._toLogObj(maskedArgs, thisLogObj);
+        const logObjWithMeta = this.settings.overwrite?.addMeta != null
+            ? this.settings.overwrite?.addMeta(logObj, logLevelId, logLevelName)
+            : this._addMetaToLogObj(logObj, logLevelId, logLevelName);
+        let logMetaMarkup;
+        let logArgsAndErrorsMarkup = undefined;
+        if (this.settings.overwrite?.formatMeta != null) {
+            logMetaMarkup = this.settings.overwrite?.formatMeta(logObjWithMeta?.[this.settings.metaProperty]);
+        }
+        if (this.settings.overwrite?.formatLogObj != null) {
+            logArgsAndErrorsMarkup = this.settings.overwrite?.formatLogObj(maskedArgs, this.settings);
+        }
+        if (this.settings.type === "pretty") {
+            logMetaMarkup = logMetaMarkup ?? this._prettyFormatLogObjMeta(logObjWithMeta?.[this.settings.metaProperty]);
+            logArgsAndErrorsMarkup = logArgsAndErrorsMarkup ?? (0, index_js_1.prettyFormatLogObj)(maskedArgs, this.settings);
+        }
+        if (logMetaMarkup != null && logArgsAndErrorsMarkup != null) {
+            this.settings.overwrite?.transportFormatted != null
+                ? this.settings.overwrite?.transportFormatted(logMetaMarkup, logArgsAndErrorsMarkup.args, logArgsAndErrorsMarkup.errors, this.settings)
+                : (0, index_js_1.transportFormatted)(logMetaMarkup, logArgsAndErrorsMarkup.args, logArgsAndErrorsMarkup.errors, this.settings);
+        }
+        else {
+            this.settings.overwrite?.transportJSON != null
+                ? this.settings.overwrite?.transportJSON(logObjWithMeta)
+                : this.settings.type !== "hidden"
+                    ? (0, index_js_1.transportJSON)(logObjWithMeta)
+                    : undefined;
+        }
+        if (this.settings.attachedTransports != null && this.settings.attachedTransports.length > 0) {
+            this.settings.attachedTransports.forEach((transportLogger) => {
+                transportLogger(logObjWithMeta);
+            });
+        }
+        return logObjWithMeta;
+    }
+    attachTransport(transportLogger) {
+        this.settings.attachedTransports.push(transportLogger);
+    }
+    getSubLogger(settings, logObj) {
+        const subLoggerSettings = {
+            ...this.settings,
+            ...settings,
+            parentNames: this.settings?.parentNames != null && this.settings?.name != null
+                ? [...this.settings.parentNames, this.settings.name]
+                : this.settings?.name != null
+                    ? [this.settings.name]
+                    : undefined,
+            prefix: [...this.settings.prefix, ...(settings?.prefix ?? [])],
+        };
+        const subLogger = new this.constructor(subLoggerSettings, logObj ?? this.logObj, this.stackDepthLevel);
+        return subLogger;
+    }
+    _mask(args) {
+        const maskValuesOfKeys = this.settings.maskValuesOfKeysCaseInsensitive !== true ? this.settings.maskValuesOfKeys : this.settings.maskValuesOfKeys.map((key) => key.toLowerCase());
+        return args?.map((arg) => {
+            return this._recursiveCloneAndMaskValuesOfKeys(arg, maskValuesOfKeys);
+        });
+    }
+    _recursiveCloneAndMaskValuesOfKeys(source, keys, seen = []) {
+        if (seen.includes(source)) {
+            return { ...source };
+        }
+        if (typeof source === "object" && source != null) {
+            seen.push(source);
+        }
+        return (0, index_js_1.isBuffer)(source)
+            ? source
+            : source instanceof Map
+                ? new Map(source)
+                : source instanceof Set
+                    ? new Set(source)
+                    : Array.isArray(source)
+                        ? source.map((item) => this._recursiveCloneAndMaskValuesOfKeys(item, keys, seen))
+                        : source instanceof Date
+                            ? new Date(source.getTime())
+                            : (0, index_js_1.isError)(source)
+                                ? Object.getOwnPropertyNames(source).reduce((o, prop) => {
+                                    o[prop] = keys.includes(this.settings?.maskValuesOfKeysCaseInsensitive !== true ? prop : prop.toLowerCase())
+                                        ? this.settings.maskPlaceholder
+                                        : this._recursiveCloneAndMaskValuesOfKeys(source[prop], keys, seen);
+                                    return o;
+                                }, this._cloneError(source))
+                                : source != null && typeof source === "object"
+                                    ? Object.getOwnPropertyNames(source).reduce((o, prop) => {
+                                        o[prop] = keys.includes(this.settings?.maskValuesOfKeysCaseInsensitive !== true ? prop : prop.toLowerCase())
+                                            ? this.settings.maskPlaceholder
+                                            : this._recursiveCloneAndMaskValuesOfKeys(source[prop], keys, seen);
+                                        return o;
+                                    }, Object.create(Object.getPrototypeOf(source)))
+                                    : ((source) => {
+                                        this.settings?.maskValuesRegEx?.forEach((regEx) => {
+                                            source = source?.toString()?.replace(regEx, this.settings.maskPlaceholder);
+                                        });
+                                        return source;
+                                    })(source);
+    }
+    _recursiveCloneAndExecuteFunctions(source, seen = []) {
+        if (seen.includes(source)) {
+            return { ...source };
+        }
+        if (typeof source === "object") {
+            seen.push(source);
+        }
+        return Array.isArray(source)
+            ? source.map((item) => this._recursiveCloneAndExecuteFunctions(item, seen))
+            : source instanceof Date
+                ? new Date(source.getTime())
+                : source && typeof source === "object"
+                    ? Object.getOwnPropertyNames(source).reduce((o, prop) => {
+                        Object.defineProperty(o, prop, Object.getOwnPropertyDescriptor(source, prop));
+                        o[prop] =
+                            typeof source[prop] === "function" ? source[prop]() : this._recursiveCloneAndExecuteFunctions(source[prop], seen);
+                        return o;
+                    }, Object.create(Object.getPrototypeOf(source)))
+                    : source;
+    }
+    _toLogObj(args, clonedLogObj = {}) {
+        args = args?.map((arg) => ((0, index_js_1.isError)(arg) ? this._toErrorObject(arg) : arg));
+        if (this.settings.argumentsArrayName == null) {
+            if (args.length === 1 && !Array.isArray(args[0]) && (0, index_js_1.isBuffer)(args[0]) !== true && !(args[0] instanceof Date)) {
+                clonedLogObj = typeof args[0] === "object" && args[0] != null ? { ...args[0], ...clonedLogObj } : { 0: args[0], ...clonedLogObj };
+            }
+            else {
+                clonedLogObj = { ...clonedLogObj, ...args };
+            }
+        }
+        else {
+            clonedLogObj = {
+                ...clonedLogObj,
+                [this.settings.argumentsArrayName]: args,
+            };
+        }
+        return clonedLogObj;
+    }
+    _cloneError(error) {
+        const ErrorConstructor = error.constructor;
+        const newError = new ErrorConstructor(error.message);
+        Object.assign(newError, error);
+        const propertyNames = Object.getOwnPropertyNames(newError);
+        for (const propName of propertyNames) {
+            const propDesc = Object.getOwnPropertyDescriptor(newError, propName);
+            if (propDesc) {
+                propDesc.writable = true;
+                Object.defineProperty(newError, propName, propDesc);
+            }
+        }
+        return newError;
+    }
+    _toErrorObject(error) {
+        return {
+            nativeError: error,
+            name: error.name ?? "Error",
+            message: error.message,
+            stack: (0, index_js_1.getErrorTrace)(error),
+        };
+    }
+    _addMetaToLogObj(logObj, logLevelId, logLevelName) {
+        return {
+            ...logObj,
+            [this.settings.metaProperty]: (0, index_js_1.getMeta)(logLevelId, logLevelName, this.stackDepthLevel, this.settings.hideLogPositionForProduction, this.settings.name, this.settings.parentNames),
+        };
+    }
+    _prettyFormatLogObjMeta(logObjMeta) {
+        if (logObjMeta == null) {
+            return "";
+        }
+        let template = this.settings.prettyLogTemplate;
+        const placeholderValues = {};
+        if (template.includes("{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}")) {
+            template = template.replace("{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}", "{{dateIsoStr}}");
+        }
+        else {
+            if (this.settings.prettyLogTimeZone === "UTC") {
+                placeholderValues["yyyy"] = logObjMeta?.date?.getUTCFullYear() ?? "----";
+                placeholderValues["mm"] = (0, formatNumberAddZeros_js_1.formatNumberAddZeros)(logObjMeta?.date?.getUTCMonth(), 2, 1);
+                placeholderValues["dd"] = (0, formatNumberAddZeros_js_1.formatNumberAddZeros)(logObjMeta?.date?.getUTCDate(), 2);
+                placeholderValues["hh"] = (0, formatNumberAddZeros_js_1.formatNumberAddZeros)(logObjMeta?.date?.getUTCHours(), 2);
+                placeholderValues["MM"] = (0, formatNumberAddZeros_js_1.formatNumberAddZeros)(logObjMeta?.date?.getUTCMinutes(), 2);
+                placeholderValues["ss"] = (0, formatNumberAddZeros_js_1.formatNumberAddZeros)(logObjMeta?.date?.getUTCSeconds(), 2);
+                placeholderValues["ms"] = (0, formatNumberAddZeros_js_1.formatNumberAddZeros)(logObjMeta?.date?.getUTCMilliseconds(), 3);
+            }
+            else {
+                placeholderValues["yyyy"] = logObjMeta?.date?.getFullYear() ?? "----";
+                placeholderValues["mm"] = (0, formatNumberAddZeros_js_1.formatNumberAddZeros)(logObjMeta?.date?.getMonth(), 2, 1);
+                placeholderValues["dd"] = (0, formatNumberAddZeros_js_1.formatNumberAddZeros)(logObjMeta?.date?.getDate(), 2);
+                placeholderValues["hh"] = (0, formatNumberAddZeros_js_1.formatNumberAddZeros)(logObjMeta?.date?.getHours(), 2);
+                placeholderValues["MM"] = (0, formatNumberAddZeros_js_1.formatNumberAddZeros)(logObjMeta?.date?.getMinutes(), 2);
+                placeholderValues["ss"] = (0, formatNumberAddZeros_js_1.formatNumberAddZeros)(logObjMeta?.date?.getSeconds(), 2);
+                placeholderValues["ms"] = (0, formatNumberAddZeros_js_1.formatNumberAddZeros)(logObjMeta?.date?.getMilliseconds(), 3);
+            }
+        }
+        const dateInSettingsTimeZone = this.settings.prettyLogTimeZone === "UTC" ? logObjMeta?.date : new Date(logObjMeta?.date?.getTime() - logObjMeta?.date?.getTimezoneOffset() * 60000);
+        placeholderValues["rawIsoStr"] = dateInSettingsTimeZone?.toISOString();
+        placeholderValues["dateIsoStr"] = dateInSettingsTimeZone?.toISOString().replace("T", " ").replace("Z", "");
+        placeholderValues["logLevelName"] = logObjMeta?.logLevelName;
+        placeholderValues["fileNameWithLine"] = logObjMeta?.path?.fileNameWithLine ?? "";
+        placeholderValues["filePathWithLine"] = logObjMeta?.path?.filePathWithLine ?? "";
+        placeholderValues["fullFilePath"] = logObjMeta?.path?.fullFilePath ?? "";
+        let parentNamesString = this.settings.parentNames?.join(this.settings.prettyErrorParentNamesSeparator);
+        parentNamesString = parentNamesString != null && logObjMeta?.name != null ? parentNamesString + this.settings.prettyErrorParentNamesSeparator : undefined;
+        placeholderValues["name"] = logObjMeta?.name != null || parentNamesString != null ? (parentNamesString ?? "") + logObjMeta?.name ?? "" : "";
+        placeholderValues["nameWithDelimiterPrefix"] =
+            placeholderValues["name"].length > 0 ? this.settings.prettyErrorLoggerNameDelimiter + placeholderValues["name"] : "";
+        placeholderValues["nameWithDelimiterSuffix"] =
+            placeholderValues["name"].length > 0 ? placeholderValues["name"] + this.settings.prettyErrorLoggerNameDelimiter : "";
+        return (0, formatTemplate_js_1.formatTemplate)(this.settings, template, placeholderValues);
+    }
+}
+exports.BaseLogger = BaseLogger;
+
+
+/***/ }),
+
+/***/ 2420:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.formatNumberAddZeros = void 0;
+function formatNumberAddZeros(value, digits = 2, addNumber = 0) {
+    if (value != null && isNaN(value)) {
+        return "";
+    }
+    value = value != null ? value + addNumber : value;
+    return digits === 2
+        ? value == null
+            ? "--"
+            : value < 10
+                ? "0" + value
+                : value.toString()
+        : value == null
+            ? "---"
+            : value < 10
+                ? "00" + value
+                : value < 100
+                    ? "0" + value
+                    : value.toString();
+}
+exports.formatNumberAddZeros = formatNumberAddZeros;
+
+
+/***/ }),
+
+/***/ 9448:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.formatTemplate = void 0;
+const prettyLogStyles_js_1 = __nccwpck_require__(1787);
+function formatTemplate(settings, template, values, hideUnsetPlaceholder = false) {
+    const templateString = String(template);
+    const ansiColorWrap = (placeholderValue, code) => `\u001b[${code[0]}m${placeholderValue}\u001b[${code[1]}m`;
+    const styleWrap = (value, style) => {
+        if (style != null && typeof style === "string") {
+            return ansiColorWrap(value, prettyLogStyles_js_1.prettyLogStyles[style]);
+        }
+        else if (style != null && Array.isArray(style)) {
+            return style.reduce((prevValue, thisStyle) => styleWrap(prevValue, thisStyle), value);
+        }
+        else {
+            if (style != null && style[value.trim()] != null) {
+                return styleWrap(value, style[value.trim()]);
+            }
+            else if (style != null && style["*"] != null) {
+                return styleWrap(value, style["*"]);
+            }
+            else {
+                return value;
+            }
+        }
+    };
+    return templateString.replace(/{{(.+?)}}/g, (_, placeholder) => {
+        const value = values[placeholder] != null ? values[placeholder] : hideUnsetPlaceholder ? "" : _;
+        return settings.stylePrettyLogs ? styleWrap(value, settings?.prettyLogStyles?.[placeholder]) + ansiColorWrap("", prettyLogStyles_js_1.prettyLogStyles.reset) : value;
+    });
+}
+exports.formatTemplate = formatTemplate;
+
+
+/***/ }),
+
+/***/ 7369:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Logger = exports.BaseLogger = void 0;
+const BaseLogger_js_1 = __nccwpck_require__(8589);
+Object.defineProperty(exports, "BaseLogger", ({ enumerable: true, get: function () { return BaseLogger_js_1.BaseLogger; } }));
+class Logger extends BaseLogger_js_1.BaseLogger {
+    constructor(settings, logObj) {
+        super(settings, logObj, 5);
+    }
+    log(logLevelId, logLevelName, ...args) {
+        return super.log(logLevelId, logLevelName, ...args);
+    }
+    silly(...args) {
+        return super.log(0, "SILLY", ...args);
+    }
+    trace(...args) {
+        return super.log(1, "TRACE", ...args);
+    }
+    debug(...args) {
+        return super.log(2, "DEBUG", ...args);
+    }
+    info(...args) {
+        return super.log(3, "INFO", ...args);
+    }
+    warn(...args) {
+        return super.log(4, "WARN", ...args);
+    }
+    error(...args) {
+        return super.log(5, "ERROR", ...args);
+    }
+    fatal(...args) {
+        return super.log(6, "FATAL", ...args);
+    }
+    getSubLogger(settings, logObj) {
+        return super.getSubLogger(settings, logObj);
+    }
+}
+exports.Logger = Logger;
+
+
+/***/ }),
+
+/***/ 9260:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+
+
+/***/ }),
+
+/***/ 1787:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.prettyLogStyles = void 0;
+exports.prettyLogStyles = {
+    reset: [0, 0],
+    bold: [1, 22],
+    dim: [2, 22],
+    italic: [3, 23],
+    underline: [4, 24],
+    overline: [53, 55],
+    inverse: [7, 27],
+    hidden: [8, 28],
+    strikethrough: [9, 29],
+    black: [30, 39],
+    red: [31, 39],
+    green: [32, 39],
+    yellow: [33, 39],
+    blue: [34, 39],
+    magenta: [35, 39],
+    cyan: [36, 39],
+    white: [37, 39],
+    blackBright: [90, 39],
+    redBright: [91, 39],
+    greenBright: [92, 39],
+    yellowBright: [93, 39],
+    blueBright: [94, 39],
+    magentaBright: [95, 39],
+    cyanBright: [96, 39],
+    whiteBright: [97, 39],
+    bgBlack: [40, 49],
+    bgRed: [41, 49],
+    bgGreen: [42, 49],
+    bgYellow: [43, 49],
+    bgBlue: [44, 49],
+    bgMagenta: [45, 49],
+    bgCyan: [46, 49],
+    bgWhite: [47, 49],
+    bgBlackBright: [100, 49],
+    bgRedBright: [101, 49],
+    bgGreenBright: [102, 49],
+    bgYellowBright: [103, 49],
+    bgBlueBright: [104, 49],
+    bgMagentaBright: [105, 49],
+    bgCyanBright: [106, 49],
+    bgWhiteBright: [107, 49],
+};
+
+
+/***/ }),
+
+/***/ 4623:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.isBuffer = exports.transportJSON = exports.transportFormatted = exports.prettyFormatErrorObj = exports.prettyFormatLogObj = exports.isError = exports.getErrorTrace = exports.getCallerStackFrame = exports.getMeta = void 0;
+const os_1 = __nccwpck_require__(2037);
+const path_1 = __nccwpck_require__(1017);
+const util_1 = __nccwpck_require__(3837);
+const formatTemplate_js_1 = __nccwpck_require__(9448);
+const meta = {
+    runtime: "Nodejs",
+    runtimeVersion: process.version,
+    hostname: (0, os_1.hostname)(),
+};
+function getMeta(logLevelId, logLevelName, stackDepthLevel, hideLogPositionForPerformance, name, parentNames) {
+    return Object.assign({}, meta, {
+        name,
+        parentNames,
+        date: new Date(),
+        logLevelId,
+        logLevelName,
+        path: !hideLogPositionForPerformance ? getCallerStackFrame(stackDepthLevel) : undefined,
+    });
+}
+exports.getMeta = getMeta;
+function getCallerStackFrame(stackDepthLevel, error = Error()) {
+    return stackLineToStackFrame(error?.stack?.split("\n")?.filter((thisLine) => thisLine.includes("    at "))?.[stackDepthLevel]);
+}
+exports.getCallerStackFrame = getCallerStackFrame;
+function getErrorTrace(error) {
+    return error?.stack?.split("\n")?.reduce((result, line) => {
+        if (line.includes("    at ")) {
+            result.push(stackLineToStackFrame(line));
+        }
+        return result;
+    }, []);
+}
+exports.getErrorTrace = getErrorTrace;
+function stackLineToStackFrame(line) {
+    const pathResult = {
+        fullFilePath: undefined,
+        fileName: undefined,
+        fileNameWithLine: undefined,
+        fileColumn: undefined,
+        fileLine: undefined,
+        filePath: undefined,
+        filePathWithLine: undefined,
+        method: undefined,
+    };
+    if (line != null && line.includes("    at ")) {
+        line = line.replace(/^\s+at\s+/gm, "");
+        const errorStackLine = line.split(" (");
+        const fullFilePath = line?.slice(-1) === ")" ? line?.match(/\(([^)]+)\)/)?.[1] : line;
+        const pathArray = fullFilePath?.includes(":") ? fullFilePath?.replace("file://", "")?.replace(process.cwd(), "")?.split(":") : undefined;
+        const fileColumn = pathArray?.pop();
+        const fileLine = pathArray?.pop();
+        const filePath = pathArray?.pop();
+        const filePathWithLine = (0, path_1.normalize)(`${filePath}:${fileLine}`);
+        const fileName = filePath?.split("/")?.pop();
+        const fileNameWithLine = `${fileName}:${fileLine}`;
+        if (filePath != null && filePath.length > 0) {
+            pathResult.fullFilePath = fullFilePath;
+            pathResult.fileName = fileName;
+            pathResult.fileNameWithLine = fileNameWithLine;
+            pathResult.fileColumn = fileColumn;
+            pathResult.fileLine = fileLine;
+            pathResult.filePath = filePath;
+            pathResult.filePathWithLine = filePathWithLine;
+            pathResult.method = errorStackLine?.[1] != null ? errorStackLine?.[0] : undefined;
+        }
+    }
+    return pathResult;
+}
+function isError(e) {
+    return util_1.types?.isNativeError != null ? util_1.types.isNativeError(e) : e instanceof Error;
+}
+exports.isError = isError;
+function prettyFormatLogObj(maskedArgs, settings) {
+    return maskedArgs.reduce((result, arg) => {
+        isError(arg) ? result.errors.push(prettyFormatErrorObj(arg, settings)) : result.args.push(arg);
+        return result;
+    }, { args: [], errors: [] });
+}
+exports.prettyFormatLogObj = prettyFormatLogObj;
+function prettyFormatErrorObj(error, settings) {
+    const errorStackStr = getErrorTrace(error).map((stackFrame) => {
+        return (0, formatTemplate_js_1.formatTemplate)(settings, settings.prettyErrorStackTemplate, { ...stackFrame }, true);
+    });
+    const placeholderValuesError = {
+        errorName: ` ${error.name} `,
+        errorMessage: error.message,
+        errorStack: errorStackStr.join("\n"),
+    };
+    return (0, formatTemplate_js_1.formatTemplate)(settings, settings.prettyErrorTemplate, placeholderValuesError);
+}
+exports.prettyFormatErrorObj = prettyFormatErrorObj;
+function transportFormatted(logMetaMarkup, logArgs, logErrors, settings) {
+    const logErrorsStr = (logErrors.length > 0 && logArgs.length > 0 ? "\n" : "") + logErrors.join("\n");
+    settings.prettyInspectOptions.colors = settings.stylePrettyLogs;
+    console.log(logMetaMarkup + (0, util_1.formatWithOptions)(settings.prettyInspectOptions, ...logArgs) + logErrorsStr);
+}
+exports.transportFormatted = transportFormatted;
+function transportJSON(json) {
+    console.log(jsonStringifyRecursive(json));
+    function jsonStringifyRecursive(obj) {
+        const cache = new Set();
+        return JSON.stringify(obj, (key, value) => {
+            if (typeof value === "object" && value !== null) {
+                if (cache.has(value)) {
+                    return "[Circular]";
+                }
+                cache.add(value);
+            }
+            return value;
+        });
+    }
+}
+exports.transportJSON = transportJSON;
+function isBuffer(arg) {
+    return Buffer.isBuffer(arg);
+}
+exports.isBuffer = isBuffer;
+
 
 /***/ }),
 

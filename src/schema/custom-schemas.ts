@@ -9,12 +9,12 @@ export interface ImportWithRef {
   path: string
 }
 
-export interface ExtendedJob extends NormalJob {
+export interface ExtendedJob extends Partial<NormalJob> {
   extends: string
 }
 
 export interface ExtendedReusableWorkflowCallJob
-  extends ReusableWorkflowCallJob {
+  extends Partial<ReusableWorkflowCallJob> {
   extends: string
 }
 
@@ -31,6 +31,8 @@ export interface Template {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
 export interface Workflow extends GithubWorkflow {
   imports?: string[] | ImportWithRef[]
   jobs: {

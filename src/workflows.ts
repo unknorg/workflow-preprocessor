@@ -8,9 +8,9 @@ import {
 } from './types'
 import {get as getConfig} from './config'
 import {getFilenameWithoutExtension, loadYAMLInDirectory} from './utils'
-import {validateWorkflow} from './validation'
+import {validateGithubWorkflow, validateWorkflow} from './validation'
 import {GithubWorkflow} from './schema/github-workflow'
-import {debug, info, trace} from './logging'
+import {debug, info, trace, warn} from './logging'
 
 function loadWorkflows(): Map<string, Workflow> {
   const workflowPath = getConfig('workflowsDir')
@@ -72,25 +72,41 @@ export function load(
 function buildWorkflow(workflow: WorkflowWrapper): GithubWorkflow {
   info(`Building ${workflow.getAbsolutePath()}`)
   const cloned: Workflow = structuredClone(workflow.getElement())
-  cloned.imports = undefined
+  delete cloned.imports
 
   for (const jobName in workflow.getElement().jobs) {
     debug(`Patching job ${jobName}`)
     cloned.jobs[jobName] = workflow.getJob(jobName)
   }
 
-  return cloned
+  try {
+    validateGithubWorkflow(cloned)
+  } catch (error) {
+    const toThrow = new Error(
+      `Error while building '${workflow.getAbsolutePath()}': ${
+        (error as Error).message
+      }`
+    )
+    if (getConfig('dieWhenInvalid').toLowerCase() === 'true') {
+      throw toThrow
+    }
+
+    warn(toThrow.message)
+  }
+
+  return cloned as GithubWorkflow
 }
 
 export function buildWorkflows(
   workflows: WorkflowWrapper[]
 ): Map<string, GithubWorkflow> {
   trace('workflows.ts#buildWorkflows()')
-  return workflows.reduce((map, workflow) => {
-    map.set(
-      getFilenameWithoutExtension(workflow.getAbsolutePath()),
-      buildWorkflow(workflow)
-    )
-    return map
-  }, new Map<string, GithubWorkflow>())
+  return workflows.reduce(
+    (map, workflow) =>
+      map.set(
+        getFilenameWithoutExtension(workflow.getAbsolutePath()),
+        buildWorkflow(workflow)
+      ),
+    new Map<string, GithubWorkflow>()
+  )
 }

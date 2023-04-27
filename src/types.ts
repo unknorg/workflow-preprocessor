@@ -1,10 +1,11 @@
 import {
-  capitalizeFirstLetter,
   combineObjects,
   getFilenameWithoutExtension,
   isExtendedJob
 } from './utils'
 import {
+  ExtendedJob,
+  ExtendedReusableWorkflowCallJob,
   Job as JobSchema,
   Template as TemplateSchema,
   Workflow as WorkflowSchema
@@ -56,8 +57,8 @@ export class ElementWrapper<Element extends ElementType>
     this.outRefs.set(ref, template)
   }
 
-  private addInRef(path: string, template: ElementWrapper<ElementType>): void {
-    this.inRefs.set(path, template)
+  private addInRef($path: string, template: ElementWrapper<ElementType>): void {
+    this.inRefs.set($path, template)
   }
 
   getJob(identifier: string): Job {
@@ -81,7 +82,9 @@ export class ElementWrapper<Element extends ElementType>
       }
 
       const parentObject = template.getJob(objectRef)
-      const withoutExtends: Job = {...job, extends: undefined}
+      const withoutExtends: Partial<
+        ExtendedJob | ExtendedReusableWorkflowCallJob
+      > = {...job, extends: undefined}
       this.element.jobs[identifier] = combineObjects(
         parentObject,
         withoutExtends

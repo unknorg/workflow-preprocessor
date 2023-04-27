@@ -5,29 +5,46 @@ import {
   Workflow,
   ElementType
 } from './types'
-import {detectCircularReferences} from './utils'
+import {coldObject, detectCircularReferences} from './utils'
 import {GithubWorkflow} from './schema/github-workflow'
 import Ajv, {ValidateFunction} from 'ajv'
 import fs from 'fs'
-import {trace} from './logging'
+import {error as logError, info, trace} from './logging'
+import path from 'path'
+import {get as getConfig} from './config'
 
-const ajv = new Ajv()
+const ajv = new Ajv({
+  logger: {
+    warn: () => {},
+    error: (args: unknown[]) => logError(args.join(' ')),
+    log: (args: unknown[]) => info(args.join(' '))
+  }
+})
 function createValidator<T>(jsonSchemaPath: string): ValidateFunction<T> {
   const schema = JSON.parse(fs.readFileSync(jsonSchemaPath, 'utf8'))
   return ajv.compile(schema) as ValidateFunction<T>
 }
 
-const validateWorkflowSchema = createValidator<Workflow>('schema/workflow.json')
-const validateTemplateSchema = createValidator<Template>('schema/template.json')
+const validateWorkflowSchema = coldObject(() =>
+  createValidator<Workflow>(path.join(getConfig('schemaDir'), 'workflow.json'))
+)
+const validateTemplateSchema = coldObject(() =>
+  createValidator<Template>(path.join(getConfig('schemaDir'), 'template.json'))
+)
+const validateGithubWorkflowSchema = coldObject(() =>
+  createValidator<GithubWorkflow>(
+    path.join(getConfig('schemaDir'), 'githubworkflow.json')
+  )
+)
 
 export const validateTemplate = (template: Template): void => {
   trace('validation.ts#validateTemplate()')
   // TODO: Forbid using reusableJobs in templates
   // TODO: Forbid having duplicate names in jobs
-  if (!validateTemplateSchema(template)) {
+  if (!validateTemplateSchema()(template)) {
     throw new Error(
-      `Invalid template: ${validateTemplateSchema.errors
-        ?.map(error => error.message)
+      `Invalid template: ${validateTemplateSchema()
+        .errors?.map(error => error.message)
         .join(', ')}`
     )
   }
@@ -35,10 +52,10 @@ export const validateTemplate = (template: Template): void => {
 
 export const validateWorkflow = (content: Workflow): void => {
   trace('validation.ts#validateWorkflow()')
-  if (!validateWorkflowSchema(content)) {
+  if (!validateWorkflowSchema()(content)) {
     throw new Error(
-      `Invalid workflow: ${validateWorkflowSchema.errors
-        ?.map(error => error.message)
+      `Invalid workflow: ${validateWorkflowSchema()
+        .errors?.map(error => error.message)
         .join(', ')}`
     )
   }
@@ -74,4 +91,17 @@ export const validateNoCircularRefs = (
   }
 }
 
-export const validateGithubWorkflow = (content: GithubWorkflow): void => {}
+export const validateGithubWorkflow = (
+  content: Workflow | GithubWorkflow
+): content is GithubWorkflow => {
+  trace('validation.ts#validateWorkflow()')
+  if (!validateGithubWorkflowSchema()(content)) {
+    throw new Error(
+      `Invalid workflow: ${validateGithubWorkflowSchema()
+        .errors?.map(error => error.message)
+        .join(', ')}`
+    )
+  }
+
+  return true
+}

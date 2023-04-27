@@ -42,7 +42,7 @@ export const getFilenameWithoutExtension = (filePath: string): string => {
 
 export const combineObjects = <T extends object>(
   original: T,
-  extension: T
+  extension: T | Partial<T>
 ): T => {
   const copied = structuredClone(original)
   merge(copied, extension)
@@ -51,7 +51,9 @@ export const combineObjects = <T extends object>(
 
 const merge = <T extends object>(obj: T, toMerge: T): void => {
   for (const key in toMerge) {
-    if (!obj.hasOwnProperty(key)) {
+    if (toMerge[key] === undefined) {
+      delete obj[key]
+    } else if (!obj.hasOwnProperty(key)) {
       obj[key] = toMerge[key]
     } else if (isPrimitive(obj[key]) || isPrimitive(toMerge[key])) {
       obj[key] = toMerge[key]
@@ -85,7 +87,7 @@ export const detectCircularReferences = (
     context.remaining.splice(index, 1)
   }
   for (const ref of element.getOutRefs().values()) {
-    if (context.visited.has(ref)) {
+    if (context.visited.has(ref) && context.visited.get(ref)) {
       circularReferences.push([element, ref])
     } else {
       circularReferences.push(
@@ -106,4 +108,9 @@ export const isExtendedJob = (
 // <a href="https://stackoverflow.com/a/1026087">StackOverflow answer</a>
 export const capitalizeFirstLetter = (string: string): string => {
   return string.charAt(0).toUpperCase() + string.slice(1)
+}
+
+export const coldObject = <T>(creator: () => T): (() => T) => {
+  let cache: T | undefined = undefined
+  return () => cache ?? (cache = creator())
 }

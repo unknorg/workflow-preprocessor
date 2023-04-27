@@ -1,0 +1,17 @@
+name: Workflow
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+imports:
+  - templates/template.yml
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: A job to run advanced tests
+    extends: template/job1

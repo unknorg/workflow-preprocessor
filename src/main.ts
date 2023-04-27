@@ -5,7 +5,7 @@ import {validateNoCircularRefs} from './validation'
 import {writeYAML} from './utils'
 import {info, trace} from './logging'
 
-async function run(): Promise<void> {
+export async function run(): Promise<void> {
   try {
     trace('main.ts#run()')
     const templates = loadTemplates()
@@ -25,4 +25,6 @@ async function run(): Promise<void> {
   }
 }
 
-run()
+if (require.main === module) {
+  run()
+}

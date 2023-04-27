@@ -1,0 +1,27 @@
+name: Workflow
+'on':
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+jobs:
+  build:
+    runs-on: ubuntu-18.04
+    name: A job to build
+    steps:
+      - name: Build
+        run: |
+          echo "Building the app"
+          ./build-script.sh
+          echo "Finished building"
+  test:
+    runs-on: ubuntu-18.04
+    name: A job to test
+    steps:
+      - name: Test
+        run: |
+          echo "Testing the app"
+          ./test-script.sh
+          echo "Finished testing"

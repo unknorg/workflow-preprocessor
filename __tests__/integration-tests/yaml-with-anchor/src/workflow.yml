@@ -1,0 +1,48 @@
+name: Workflow
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+imports:
+  - templates/template.yml
+
+internals:
+  test-template: &test_template
+    extends: template/test-base
+  deploy-template: &deploy_template
+    extends: template/deploy-base
+
+jobs:
+  test-macos:
+    <<: *test_template
+    runs-on: macos-latest
+    name: Test on macos
+  deploy-macos:
+    <<: *deploy_template
+    runs-on: macos-latest
+    name: Deploy on macos
+    needs: [test-macos]
+
+  test-ubuntu:
+    runs-on: ubuntu-latest
+    name: Test on ubuntu
+    <<: *test_template
+  deploy-ubuntu:
+    runs-on: ubuntu-latest
+    name: Deploy on ubuntu
+    needs: [test-ubuntu]
+    <<: *deploy_template
+
+  test-windows:
+    runs-on: windows-latest
+    name: Test on windows
+    <<: *test_template
+  deploy-windows:
+    runs-on: windows-latest
+    name: Deploy on windows
+    needs: [test-windows]
+    <<: *deploy_template

@@ -1,0 +1,99 @@
+name: Workflow
+'on':
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+jobs:
+  test-macos:
+    runs-on: macos-latest
+    name: Test on macos
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16
+      - name: Install dependencies
+        run: npm install
+      - name: Run tests
+        run: npm test
+  deploy-macos:
+    runs-on: macos-latest
+    name: Deploy on macos
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16
+      - name: Install dependencies
+        run: npm install
+      - name: Run deploy
+        run: npm run deploy
+    needs:
+      - test-macos
+  test-ubuntu:
+    runs-on: ubuntu-latest
+    name: Test on ubuntu
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16
+      - name: Install dependencies
+        run: npm install
+      - name: Run tests
+        run: npm test
+  deploy-ubuntu:
+    runs-on: ubuntu-latest
+    name: Deploy on ubuntu
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16
+      - name: Install dependencies
+        run: npm install
+      - name: Run deploy
+        run: npm run deploy
+    needs:
+      - test-ubuntu
+  test-windows:
+    runs-on: windows-latest
+    name: Test on windows
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16
+      - name: Install dependencies
+        run: npm install
+      - name: Run tests
+        run: npm test
+  deploy-windows:
+    runs-on: windows-latest
+    name: Deploy on windows
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16
+      - name: Install dependencies
+        run: npm install
+      - name: Run deploy
+        run: npm run deploy
+    needs:
+      - test-windows

@@ -7,13 +7,14 @@ import {
   WorkflowWrapper
 } from './types'
 import {get as getConfig} from './config'
-import {getFilenameWithoutExtension, loadYAMLInDirectory} from './utils'
+import {loadYAMLInDirectory} from './utils/yaml'
+import {getFilenameWithoutExtension} from './utils/misc'
 import {validateGithubWorkflow, validateWorkflow} from './validation'
 import {GithubWorkflow} from './schema/github-workflow'
 import {debug, info, trace, warn} from './logging'
 
 function loadWorkflows(): Map<string, Workflow> {
-  const workflowPath = getConfig('workflowsDir')
+  const workflowPath = getConfig('workflowsDirectory')
   return loadYAMLInDirectory<Workflow>(workflowPath)
 }
 
@@ -73,6 +74,7 @@ function buildWorkflow(workflow: WorkflowWrapper): GithubWorkflow {
   info(`Building ${workflow.getAbsolutePath()}`)
   const cloned: Workflow = structuredClone(workflow.getElement())
   delete cloned.imports
+  delete cloned.internals
 
   for (const jobName in workflow.getElement().jobs) {
     debug(`Patching job ${jobName}`)

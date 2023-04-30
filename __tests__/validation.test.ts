@@ -12,12 +12,12 @@ import {set} from '../src/config'
 
 beforeAll(() => {
   initState()
-  set('schemaDir', './__tests__/resources/schemas')
+  set('schemaDirectory', './__tests__/resources/schemas')
   generateAndWriteJsonSchemas('custom-schemas.ts', ['Template', 'Workflow'])
 })
 beforeEach(() => {
   resetState()
-  set('schemaDir', './__tests__/resources/schemas')
+  set('schemaDirectory', './__tests__/resources/schemas')
 })
 afterAll(() => {
   deleteGeneratedJsonSchemas()

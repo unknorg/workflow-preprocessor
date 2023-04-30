@@ -2,12 +2,13 @@ import * as core from '@actions/core'
 import {load as loadTemplates} from './templates'
 import {buildWorkflows, load as loadWorkflows} from './workflows'
 import {validateNoCircularRefs} from './validation'
-import {writeYAML} from './utils'
+import {writeYAML} from './utils/yaml'
 import {info, trace} from './logging'
 
 export async function run(): Promise<void> {
   try {
     trace('main.ts#run()')
+
     const templates = loadTemplates()
     const workflows = loadWorkflows(templates)
     validateNoCircularRefs([...workflows.values()])

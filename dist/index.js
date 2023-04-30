@@ -10,24 +10,38 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports._testing = exports.get = exports.set = void 0;
 const defaultOptions = {
     // The default options
-    templatesDir: './src/templates',
-    workflowsDir: './src',
-    schemaDir: './schema',
-    generatedDir: './generated',
+    templatesDirectory: './src/templates',
+    workflowsDirectory: './src',
+    schemaDirectory: './schema',
+    generatedDirectory: './generated',
     logLevel: 'trace',
     useCustomLogger: 'false',
     dieWhenInvalid: 'true'
 };
+const optionToEnv = new Map([
+    ['templatesDirectory', 'TEMPLATES-DIRECTORY'],
+    ['workflowsDirectory', 'WORKFLOWS-DIRECTORY'],
+    ['schemaDirectory', 'SCHEMA-DIRECTORY'],
+    ['generatedDirectory', 'GENERATED-DIRECTORY'],
+    ['logLevel', 'LOG-LEVEL'],
+    ['dieWhenInvalid', 'DIE-WHEN-INVALID']
+]);
 const set = (option, value) => {
     defaultOptions[option] = value;
 };
 exports.set = set;
 const get = (option) => {
-    return defaultOptions[option];
+    var _a;
+    return (_a = getFromEnv(option)) !== null && _a !== void 0 ? _a : defaultOptions[option];
 };
 exports.get = get;
+const getFromEnv = (option) => {
+    var _a;
+    return process.env[`INPUT_${(_a = optionToEnv.get(option)) !== null && _a !== void 0 ? _a : 'NONE'}`];
+};
 // Testing
 exports._testing = {
+    getFromEnv,
     defaultOptions
 };
 
@@ -163,7 +177,7 @@ const core = __importStar(__nccwpck_require__(2186));
 const templates_1 = __nccwpck_require__(5303);
 const workflows_1 = __nccwpck_require__(2303);
 const validation_1 = __nccwpck_require__(581);
-const utils_1 = __nccwpck_require__(918);
+const yaml_1 = __nccwpck_require__(8219);
 const logging_1 = __nccwpck_require__(41);
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
@@ -175,7 +189,7 @@ function run() {
             const githubWorkflows = (0, workflows_1.buildWorkflows)([...workflows.values()]);
             for (const [filename, workflow] of githubWorkflows) {
                 (0, logging_1.info)(`Writing ${filename}`);
-                (0, utils_1.writeYAML)(filename, workflow);
+                (0, yaml_1.writeYAML)(filename, workflow);
             }
             core.setOutput('time', new Date().toTimeString());
         }
@@ -204,11 +218,11 @@ exports.load = void 0;
 const types_1 = __nccwpck_require__(8164);
 const config_1 = __nccwpck_require__(88);
 const validation_1 = __nccwpck_require__(581);
-const utils_1 = __nccwpck_require__(918);
+const yaml_1 = __nccwpck_require__(8219);
 const logging_1 = __nccwpck_require__(41);
 function loadTemplates() {
-    const templatePath = (0, config_1.get)('templatesDir');
-    return (0, utils_1.loadYAMLInDirectory)(templatePath);
+    const templatePath = (0, config_1.get)('templatesDirectory');
+    return (0, yaml_1.loadYAMLInDirectory)(templatePath);
 }
 function validateTemplates(templates) {
     for (const [filename, template] of templates) {
@@ -255,7 +269,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ElementWrapper = void 0;
-const utils_1 = __nccwpck_require__(918);
+const misc_1 = __nccwpck_require__(2410);
 const path_1 = __importDefault(__nccwpck_require__(1017));
 const logging_1 = __nccwpck_require__(41);
 class ElementWrapper {
@@ -286,7 +300,7 @@ class ElementWrapper {
         if (!job) {
             throw new Error(`Object '${identifier}' not found in ${this.elementType} '${this.absolutePath}'`);
         }
-        if ((0, utils_1.isExtendedJob)(job)) {
+        if ((0, misc_1.isExtendedJob)(job)) {
             (0, logging_1.debug)(`Processing extended job '${identifier}'`);
             const parentRef = job.extends;
             const templateRef = parentRef.split('/')[0];
@@ -297,7 +311,7 @@ class ElementWrapper {
             }
             const parentObject = template.getJob(objectRef);
             const withoutExtends = Object.assign(Object.assign({}, job), { extends: undefined });
-            this.element.jobs[identifier] = (0, utils_1.combineObjects)(parentObject, withoutExtends);
+            this.element.jobs[identifier] = (0, misc_1.combineObjects)(parentObject, withoutExtends);
         }
         return this.element.jobs[identifier];
     }
@@ -316,7 +330,7 @@ class ElementWrapper {
             if (typeof imported === 'string') {
                 // Import without ref, defaults to the path
                 relativePath = imported;
-                refName = (0, utils_1.getFilenameWithoutExtension)(imported);
+                refName = (0, misc_1.getFilenameWithoutExtension)(imported);
             }
             else {
                 // Import with path
@@ -341,72 +355,25 @@ exports.ElementWrapper = ElementWrapper;
 
 /***/ }),
 
-/***/ 918:
+/***/ 2410:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.coldObject = exports.capitalizeFirstLetter = exports.isExtendedJob = exports.detectCircularReferences = exports.combineObjects = exports.getFilenameWithoutExtension = exports.writeYAML = exports.loadYAMLInDirectory = void 0;
-const fs = __importStar(__nccwpck_require__(7147));
-const js_yaml_1 = __nccwpck_require__(1917);
-const config_1 = __nccwpck_require__(88);
+exports.capitalizeFirstLetter = exports.isExtendedJob = exports.detectCircularReferences = exports.coldObject = exports.combineObjects = exports.getFilenameWithoutExtension = void 0;
 const path_1 = __importDefault(__nccwpck_require__(1017));
-const loadYAMLInDirectory = (dir) => {
-    const objects = new Map();
-    for (const file of fs.readdirSync(dir, {
-        withFileTypes: true
-    })) {
-        if (file.isDirectory()) {
-            continue;
-        }
-        const fullPath = path_1.default.resolve(dir, file.name);
-        const buffer = fs.readFileSync(fullPath, 'utf8');
-        const obj = (0, js_yaml_1.load)(buffer);
-        objects.set(fullPath, obj);
-    }
-    return objects;
-};
-exports.loadYAMLInDirectory = loadYAMLInDirectory;
-const writeYAML = (filename, obj) => {
-    const yaml = (0, js_yaml_1.dump)(obj);
-    const generatedDir = (0, config_1.get)('generatedDir');
-    const generatedYmlPath = path_1.default.resolve(generatedDir, `${filename}.yml`);
-    fs.mkdirSync(generatedDir, { recursive: true });
-    fs.writeFileSync(generatedYmlPath, yaml, 'utf8');
-};
-exports.writeYAML = writeYAML;
+//region YAML
+//endregion
 // <a href="https://stackoverflow.com/a/4250408">StackOverflow answer</a>
 const getFilenameWithoutExtension = (filePath) => {
     return path_1.default.basename(filePath).replace(/\.[^/.]+$/, '');
 };
 exports.getFilenameWithoutExtension = getFilenameWithoutExtension;
+//region Object manipulation
 const combineObjects = (original, extension) => {
     const copied = structuredClone(original);
     merge(copied, extension);
@@ -432,6 +399,12 @@ const merge = (obj, toMerge) => {
 const isPrimitive = (value) => {
     return (value === null || (typeof value !== 'function' && typeof value !== 'object'));
 };
+const coldObject = (creator) => {
+    let cache = undefined;
+    return () => cache !== null && cache !== void 0 ? cache : (cache = creator());
+};
+exports.coldObject = coldObject;
+//endregion
 /**
  * Detects circular references which include the given element. <br/>
  * The visited part of the context is mutated during the process,
@@ -467,11 +440,77 @@ const capitalizeFirstLetter = (string) => {
     return string.charAt(0).toUpperCase() + string.slice(1);
 };
 exports.capitalizeFirstLetter = capitalizeFirstLetter;
-const coldObject = (creator) => {
-    let cache = undefined;
-    return () => cache !== null && cache !== void 0 ? cache : (cache = creator());
+
+
+/***/ }),
+
+/***/ 8219:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-exports.coldObject = coldObject;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.writeYAML = exports.loadYAMLInDirectory = void 0;
+const js_yaml_1 = __nccwpck_require__(1917);
+const fs_1 = __importDefault(__nccwpck_require__(7147));
+const path_1 = __importDefault(__nccwpck_require__(1017));
+const logging_1 = __nccwpck_require__(41);
+const config_1 = __nccwpck_require__(88);
+const loadYAMLInDirectory = (dir) => {
+    (0, logging_1.trace)(`utils.ts#loadYAMLInDirectory(${dir})`);
+    const objects = new Map();
+    for (const file of fs_1.default.readdirSync(dir, {
+        withFileTypes: true
+    })) {
+        if (file.isDirectory() || !file.name.match(/\.ya?ml$/i)) {
+            continue;
+        }
+        const fullPath = path_1.default.resolve(dir, file.name);
+        (0, logging_1.debug)(`Loading '${fullPath}'`);
+        const buffer = fs_1.default.readFileSync(fullPath, 'utf8');
+        const obj = (0, js_yaml_1.load)(buffer, {
+            schema
+        });
+        objects.set(fullPath, obj);
+    }
+    return objects;
+};
+exports.loadYAMLInDirectory = loadYAMLInDirectory;
+const writeYAML = (filename, obj) => {
+    const yaml = (0, js_yaml_1.dump)(obj, {
+        noRefs: true
+    });
+    const generatedDir = (0, config_1.get)('generatedDirectory');
+    const generatedYmlPath = path_1.default.resolve(generatedDir, `${filename}.yml`);
+    fs_1.default.mkdirSync(generatedDir, { recursive: true });
+    fs_1.default.writeFileSync(generatedYmlPath, yaml, 'utf8');
+};
+exports.writeYAML = writeYAML;
+function isZippedSequence(obj) {
+    return (obj instanceof Object && 'customType' in obj && obj.customType === 'zipped');
+}
+function zipped(sequence) {
+    return {
+        customType: 'zipped',
+        data: sequence
+    };
+}
+const zippedTag = new js_yaml_1.Type('!zipped', {
+    kind: 'sequence',
+    construct: zipped
+});
+function unzip(obj) {
+    return obj.reduce((acc, val) => isZippedSequence(val) ? acc.concat(...val.data) : acc.concat([val]), []);
+}
+const unzipTag = new js_yaml_1.Type('!unzip', {
+    kind: 'sequence',
+    construct: unzip
+});
+const schema = js_yaml_1.DEFAULT_SCHEMA.extend([zippedTag, unzipTag]);
+//endregion
 
 
 /***/ }),
@@ -486,7 +525,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.validateGithubWorkflow = exports.validateNoCircularRefs = exports.validateWorkflow = exports.validateTemplate = void 0;
-const utils_1 = __nccwpck_require__(918);
+const misc_1 = __nccwpck_require__(2410);
 const ajv_1 = __importDefault(__nccwpck_require__(2426));
 const fs_1 = __importDefault(__nccwpck_require__(7147));
 const logging_1 = __nccwpck_require__(41);
@@ -503,26 +542,22 @@ function createValidator(jsonSchemaPath) {
     const schema = JSON.parse(fs_1.default.readFileSync(jsonSchemaPath, 'utf8'));
     return ajv.compile(schema);
 }
-const validateWorkflowSchema = (0, utils_1.coldObject)(() => createValidator(path_1.default.join((0, config_1.get)('schemaDir'), 'workflow.json')));
-const validateTemplateSchema = (0, utils_1.coldObject)(() => createValidator(path_1.default.join((0, config_1.get)('schemaDir'), 'template.json')));
-const validateGithubWorkflowSchema = (0, utils_1.coldObject)(() => createValidator(path_1.default.join((0, config_1.get)('schemaDir'), 'githubworkflow.json')));
+const validateWorkflowSchema = (0, misc_1.coldObject)(() => createValidator(path_1.default.join((0, config_1.get)('schemaDirectory'), 'workflow.json')));
+const validateTemplateSchema = (0, misc_1.coldObject)(() => createValidator(path_1.default.join((0, config_1.get)('schemaDirectory'), 'template.json')));
+const validateGithubWorkflowSchema = (0, misc_1.coldObject)(() => createValidator(path_1.default.join((0, config_1.get)('schemaDirectory'), 'githubworkflow.json')));
 const validateTemplate = (template) => {
-    var _a;
     (0, logging_1.trace)('validation.ts#validateTemplate()');
     // TODO: Forbid using reusableJobs in templates
     // TODO: Forbid having duplicate names in jobs
     if (!validateTemplateSchema()(template)) {
-        throw new Error(`Invalid template: ${(_a = validateTemplateSchema()
-            .errors) === null || _a === void 0 ? void 0 : _a.map(error => error.message).join(', ')}`);
+        throw new Error(`Invalid template: ${formatErrorMessage(validateTemplateSchema())}`);
     }
 };
 exports.validateTemplate = validateTemplate;
 const validateWorkflow = (content) => {
-    var _a;
     (0, logging_1.trace)('validation.ts#validateWorkflow()');
     if (!validateWorkflowSchema()(content)) {
-        throw new Error(`Invalid workflow: ${(_a = validateWorkflowSchema()
-            .errors) === null || _a === void 0 ? void 0 : _a.map(error => error.message).join(', ')}`);
+        throw new Error(`Invalid workflow: ${formatErrorMessage(validateWorkflowSchema())}`);
     }
 };
 exports.validateWorkflow = validateWorkflow;
@@ -540,7 +575,7 @@ const validateNoCircularRefs = (elements) => {
     const circularRefs = [];
     while (remaining.length > 0) {
         const template = context.remaining[0];
-        circularRefs.push(...(0, utils_1.detectCircularReferences)(template, context));
+        circularRefs.push(...(0, misc_1.detectCircularReferences)(template, context));
     }
     if (circularRefs.length > 0) {
         throw new Error(`Circular references detected: ${circularRefs
@@ -550,15 +585,19 @@ const validateNoCircularRefs = (elements) => {
 };
 exports.validateNoCircularRefs = validateNoCircularRefs;
 const validateGithubWorkflow = (content) => {
-    var _a;
     (0, logging_1.trace)('validation.ts#validateWorkflow()');
     if (!validateGithubWorkflowSchema()(content)) {
-        throw new Error(`Invalid workflow: ${(_a = validateGithubWorkflowSchema()
-            .errors) === null || _a === void 0 ? void 0 : _a.map(error => error.message).join(', ')}`);
+        throw new Error(`Invalid workflow: ${formatErrorMessage(validateGithubWorkflowSchema())}`);
     }
     return true;
 };
 exports.validateGithubWorkflow = validateGithubWorkflow;
+const formatErrorMessage = (validator) => {
+    var _a, _b;
+    return ((_b = (_a = validator.errors) === null || _a === void 0 ? void 0 : _a.map(error => {
+        return `${error.keyword}: ${error.message}`;
+    }).join(', ')) !== null && _b !== void 0 ? _b : '');
+};
 
 
 /***/ }),
@@ -572,12 +611,13 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.buildWorkflows = exports.load = void 0;
 const types_1 = __nccwpck_require__(8164);
 const config_1 = __nccwpck_require__(88);
-const utils_1 = __nccwpck_require__(918);
+const yaml_1 = __nccwpck_require__(8219);
+const misc_1 = __nccwpck_require__(2410);
 const validation_1 = __nccwpck_require__(581);
 const logging_1 = __nccwpck_require__(41);
 function loadWorkflows() {
-    const workflowPath = (0, config_1.get)('workflowsDir');
-    return (0, utils_1.loadYAMLInDirectory)(workflowPath);
+    const workflowPath = (0, config_1.get)('workflowsDirectory');
+    return (0, yaml_1.loadYAMLInDirectory)(workflowPath);
 }
 function validateWorkflows(workflows) {
     for (const [filename, workflow] of workflows) {
@@ -618,6 +658,7 @@ function buildWorkflow(workflow) {
     (0, logging_1.info)(`Building ${workflow.getAbsolutePath()}`);
     const cloned = structuredClone(workflow.getElement());
     delete cloned.imports;
+    delete cloned.internals;
     for (const jobName in workflow.getElement().jobs) {
         (0, logging_1.debug)(`Patching job ${jobName}`);
         cloned.jobs[jobName] = workflow.getJob(jobName);
@@ -636,7 +677,7 @@ function buildWorkflow(workflow) {
 }
 function buildWorkflows(workflows) {
     (0, logging_1.trace)('workflows.ts#buildWorkflows()');
-    return workflows.reduce((map, workflow) => map.set((0, utils_1.getFilenameWithoutExtension)(workflow.getAbsolutePath()), buildWorkflow(workflow)), new Map());
+    return workflows.reduce((map, workflow) => map.set((0, misc_1.getFilenameWithoutExtension)(workflow.getAbsolutePath()), buildWorkflow(workflow)), new Map());
 }
 exports.buildWorkflows = buildWorkflows;
 
@@ -3475,7 +3516,7 @@ exports.ValueScope = ValueScope;
 
 /***/ }),
 
-/***/ 8048:
+/***/ 6150:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -4321,7 +4362,7 @@ exports.shouldUseRule = shouldUseRule;
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.boolOrEmptySchema = exports.topBoolOrEmptySchema = void 0;
-const errors_1 = __nccwpck_require__(8048);
+const errors_1 = __nccwpck_require__(6150);
 const codegen_1 = __nccwpck_require__(9179);
 const names_1 = __nccwpck_require__(50);
 const boolError = {
@@ -4380,7 +4421,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.reportTypeError = exports.checkDataTypes = exports.checkDataType = exports.coerceAndCheckDataType = exports.getJSONTypes = exports.getSchemaTypes = exports.DataType = void 0;
 const rules_1 = __nccwpck_require__(1785);
 const applicability_1 = __nccwpck_require__(3627);
-const errors_1 = __nccwpck_require__(8048);
+const errors_1 = __nccwpck_require__(6150);
 const codegen_1 = __nccwpck_require__(9179);
 const util_1 = __nccwpck_require__(3439);
 var DataType;
@@ -4640,7 +4681,7 @@ const codegen_1 = __nccwpck_require__(9179);
 const names_1 = __nccwpck_require__(50);
 const resolve_1 = __nccwpck_require__(6646);
 const util_1 = __nccwpck_require__(3439);
-const errors_1 = __nccwpck_require__(8048);
+const errors_1 = __nccwpck_require__(6150);
 // schema compilation - generates validation function, subschemaCode (below) is used for subschemas
 function validateFunctionCode(it) {
     if (isSchemaObj(it)) {
@@ -5159,7 +5200,7 @@ exports.validateKeywordUsage = exports.validSchemaType = exports.funcKeywordCode
 const codegen_1 = __nccwpck_require__(9179);
 const names_1 = __nccwpck_require__(50);
 const code_1 = __nccwpck_require__(4205);
-const errors_1 = __nccwpck_require__(8048);
+const errors_1 = __nccwpck_require__(6150);
 function macroKeywordCode(cxt, def) {
     const { gen, keyword, schema, parentSchema, it } = cxt;
     const macroSchema = def.macro.call(it.self, schema, parentSchema, it);
@@ -8184,7 +8225,7 @@ module.exports.YAMLException = __nccwpck_require__(8179);
 module.exports.types = {
   binary:    __nccwpck_require__(7900),
   float:     __nccwpck_require__(2705),
-  map:       __nccwpck_require__(6150),
+  map:       __nccwpck_require__(7881),
   null:      __nccwpck_require__(721),
   pairs:     __nccwpck_require__(6860),
   set:       __nccwpck_require__(9548),
@@ -11239,7 +11280,7 @@ module.exports = new Schema({
   explicit: [
     __nccwpck_require__(3619),
     __nccwpck_require__(7283),
-    __nccwpck_require__(6150)
+    __nccwpck_require__(7881)
   ]
 });
 
@@ -11901,7 +11942,7 @@ module.exports = new Type('tag:yaml.org,2002:int', {
 
 /***/ }),
 
-/***/ 6150:
+/***/ 7881:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";

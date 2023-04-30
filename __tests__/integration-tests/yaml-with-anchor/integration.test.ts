@@ -9,7 +9,7 @@ import {run} from '../../../src/main'
 beforeAll(() => integrationTestPre(__dirname))
 afterAll(integrationTestPost)
 
-test('valid template and workflow', async () => {
+test('yaml with anchors', async () => {
   await expect(run()).resolves.not.toThrow()
   assertGeneratedWorkflows()
 })

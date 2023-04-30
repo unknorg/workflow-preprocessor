@@ -1,11 +1,11 @@
 import {ElementWrapper, Template, TemplateWrapper} from './types'
 import {get as getConfig} from './config'
 import {validateTemplate} from './validation'
-import {loadYAMLInDirectory} from './utils'
+import {loadYAMLInDirectory} from './utils/yaml'
 import {trace} from './logging'
 
 function loadTemplates(): Map<string, Template> {
-  const templatePath = getConfig('templatesDir')
+  const templatePath = getConfig('templatesDirectory')
   return loadYAMLInDirectory<Template>(templatePath)
 }
 

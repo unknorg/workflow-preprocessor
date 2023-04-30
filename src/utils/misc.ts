@@ -1,45 +1,21 @@
-import {CircularCheckContext, ElementWrapper, ElementType} from './types'
-import * as fs from 'fs'
-import {dump, load} from 'js-yaml'
+import {CircularCheckContext, ElementType, ElementWrapper} from '../types'
 import {
   ExtendedJob,
   ExtendedReusableWorkflowCallJob,
   Job
-} from './schema/custom-schemas'
-import {get as getConfig} from './config'
+} from '../schema/custom-schemas'
 import path from 'path'
 
-export const loadYAMLInDirectory = <T extends object>(
-  dir: string
-): Map<string, T> => {
-  const objects = new Map<string, T>()
-  for (const file of fs.readdirSync(dir, {
-    withFileTypes: true
-  })) {
-    if (file.isDirectory()) {
-      continue
-    }
-    const fullPath = path.resolve(dir, file.name)
-    const buffer = fs.readFileSync(fullPath, 'utf8')
-    const obj = load(buffer) as T
-    objects.set(fullPath, obj)
-  }
-  return objects
-}
+//region YAML
 
-export const writeYAML = (filename: string, obj: object): void => {
-  const yaml = dump(obj)
-  const generatedDir = getConfig('generatedDir')
-  const generatedYmlPath = path.resolve(generatedDir, `${filename}.yml`)
-  fs.mkdirSync(generatedDir, {recursive: true})
-  fs.writeFileSync(generatedYmlPath, yaml, 'utf8')
-}
+//endregion
 
 // <a href="https://stackoverflow.com/a/4250408">StackOverflow answer</a>
 export const getFilenameWithoutExtension = (filePath: string): string => {
   return path.basename(filePath).replace(/\.[^/.]+$/, '')
 }
 
+//region Object manipulation
 export const combineObjects = <T extends object>(
   original: T,
   extension: T | Partial<T>
@@ -68,6 +44,12 @@ const isPrimitive = (value: unknown): boolean => {
     value === null || (typeof value !== 'function' && typeof value !== 'object')
   )
 }
+
+export const coldObject = <T>(creator: () => T): (() => T) => {
+  let cache: T | undefined = undefined
+  return () => cache ?? (cache = creator())
+}
+//endregion
 
 /**
  * Detects circular references which include the given element. <br/>
@@ -108,9 +90,4 @@ export const isExtendedJob = (
 // <a href="https://stackoverflow.com/a/1026087">StackOverflow answer</a>
 export const capitalizeFirstLetter = (string: string): string => {
   return string.charAt(0).toUpperCase() + string.slice(1)
-}
-
-export const coldObject = <T>(creator: () => T): (() => T) => {
-  let cache: T | undefined = undefined
-  return () => cache ?? (cache = creator())
 }

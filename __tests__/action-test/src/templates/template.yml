@@ -1,0 +1,13 @@
+imports:
+  - internal-template.yml
+
+jobs:
+  build:
+    extends: internal-template/run-on-ubuntu
+    name: A job to build
+    steps:
+      - name: Build
+        run: |
+          echo "Building the app"
+          ./build-script.sh
+          echo "Finished building"

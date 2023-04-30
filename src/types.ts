@@ -2,7 +2,7 @@ import {
   combineObjects,
   getFilenameWithoutExtension,
   isExtendedJob
-} from './utils'
+} from './utils/misc'
 import {
   ExtendedJob,
   ExtendedReusableWorkflowCallJob,

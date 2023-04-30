@@ -26,6 +26,7 @@ export type Job =
 
 export interface Template {
   imports?: string[] | ImportWithRef[]
+  internals?: unknown
   jobs: {
     [k: string]: Job
   }
@@ -35,6 +36,7 @@ export interface Template {
 // @ts-ignore
 export interface Workflow extends GithubWorkflow {
   imports?: string[] | ImportWithRef[]
+  internals?: unknown
   jobs: {
     [k: string]: Job
   }

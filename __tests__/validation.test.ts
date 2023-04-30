@@ -12,12 +12,12 @@ import {set} from '../src/config'
 
 beforeAll(() => {
   initState()
-  set('schemaDir', './__tests__/resources/schemas')
+  set('schemaDirectory', './__tests__/resources/schemas')
   generateAndWriteJsonSchemas('custom-schemas.ts', ['Template', 'Workflow'])
 })
 beforeEach(() => {
   resetState()
-  set('schemaDir', './__tests__/resources/schemas')
+  set('schemaDirectory', './__tests__/resources/schemas')
 })
 afterAll(() => {
   deleteGeneratedJsonSchemas()
@@ -31,6 +31,6 @@ test('accept valid templates', async () => {
 test('reject invalid templates', async () => {
   const tested = loadYAMLResource<Template>('invalid-template')
   expect(() => validateTemplate(tested)).toThrow(
-    new Error('Invalid template: must be object')
+    new Error("Invalid template: Instance Path '': must be object")
   )
 })

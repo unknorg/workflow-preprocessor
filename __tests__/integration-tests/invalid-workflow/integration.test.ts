@@ -5,7 +5,7 @@ import {run} from '../../../src/main'
 beforeAll(() => integrationTestPre(__dirname))
 afterAll(integrationTestPost)
 
-test('circular references', async () => {
+test('invalid workflow', async () => {
   let error: Error | undefined = undefined
   try {
     await run()
@@ -15,6 +15,8 @@ test('circular references', async () => {
 
   expect(error).toBeDefined()
   expect(error?.message).toMatch(
-    /Circular references detected: (.*)workflow.yml -> (.*)template.yml -> (.*)template2.yml -> (.*)template.yml/
+    new RegExp(
+      `Invalid workflow (.*)workflow.yml: Invalid workflow: Instance Path '/jobs/fail': must have required property 'runs-on', must have required property 'uses', must have required property 'extends', must have required property 'extends', must match a schema in anyOf`
+    )
   )
 })

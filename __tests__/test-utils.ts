@@ -1,11 +1,13 @@
-import {getFilenameWithoutExtension, loadYAMLInDirectory} from '../src/utils'
+import {getFilenameWithoutExtension} from '../src/utils/misc'
+import {loadYAMLInDirectory} from '../src/utils/yaml'
 import * as config from '../src/config'
+import {get as getConfig, set as setConfig} from '../src/config'
 import * as TJS from 'typescript-json-schema'
-import path from 'path'
 import {Definition} from 'typescript-json-schema'
-import {get as getConfig} from '../src/config'
+import path from 'path'
 import fs from 'fs'
 import {expect} from '@jest/globals'
+import {debug} from '../src/logging'
 
 let resources: Map<string, unknown> | undefined = undefined
 
@@ -131,7 +133,9 @@ const generateJsonSchemas = (
   module: string,
   schemas: string[]
 ): Map<string, Definition> => {
-  const program = TJS.getProgramFromFiles([path.join('src', 'schema', module)])
+  const file = path.resolve('src', 'schema', module)
+  debug(`Generating JSON schemas from '${file}'`)
+  const program = TJS.getProgramFromFiles([file])
 
   const generator = TJS.buildGenerator(program, settings)
   if (generator === null) {
@@ -148,7 +152,7 @@ export const generateAndWriteJsonSchemas = (
   schemas: string[]
 ): void => {
   const generated = generateJsonSchemas(module, schemas)
-  const generatedDir = getConfig('schemaDir')
+  const generatedDir = getConfig('schemaDirectory')
   fs.mkdirSync(generatedDir, {recursive: true})
 
   for (const [key, value] of generated.entries()) {
@@ -161,7 +165,8 @@ export const generateAndWriteJsonSchemas = (
 }
 
 export const deleteGeneratedJsonSchemas = (): void => {
-  const generatedDir = getConfig('schemaDir')
+  const generatedDir = getConfig('schemaDirectory')
+  debug(`Deleting generated JSON schemas in '${generatedDir}'`)
   fs.rmSync(generatedDir, {recursive: true})
 }
 
@@ -184,4 +189,23 @@ export const assertGeneratedWorkflows = (): void => {
     expect(generatedWorkflows.has(key)).toBeTruthy()
     expect(generatedWorkflows.get(key)).toEqual(value)
   }
+}
+
+const integrationTestState: {
+  previousCwd?: string
+} = {}
+export const integrationTestPre = (testDirectory: string): void => {
+  integrationTestState.previousCwd = process.cwd()
+
+  const oldVal = getConfig('schemaDirectory')
+  setConfig('schemaDirectory', path.resolve(testDirectory, oldVal))
+  generateAndWriteJsonSchemas('custom-schemas.ts', ['Template', 'Workflow'])
+  generateAndWriteJsonSchemas('github-workflow.ts', ['GithubWorkflow'])
+  setConfig('schemaDirectory', oldVal)
+
+  process.chdir(testDirectory)
+}
+export const integrationTestPost = (): void => {
+  deleteGeneratedJsonSchemas()
+  process.chdir(integrationTestState.previousCwd)
 }

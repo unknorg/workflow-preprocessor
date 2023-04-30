@@ -19,6 +19,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - run: |
+          cp -r ./__tests__/action-test .
+          ls -la
       - uses: ./
         with:
-          milliseconds: 1000
+          templates-directory: './action-test/src/templates'
+          workflows-directory: './action-test/src'
+          generated-directory: './action-test/generated'

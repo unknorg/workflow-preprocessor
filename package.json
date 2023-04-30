@@ -7,6 +7,8 @@
   "scripts": {
     "gen-workflow": "typescript-json-schema --required --noExtraProps --out schema/workflow.json src/schema/custom-schemas.ts Workflow",
     "gen-template": "typescript-json-schema --required --noExtraProps --out schema/template.json src/schema/custom-schemas.ts Template",
+    "gen-github": "typescript-json-schema --required --noExtraProps --out schema/githubworkflow.json src/schema/github-workflow.ts GithubWorkflow",
+    "gen-all": "npm run gen-workflow && npm run gen-template && npm run gen-github",
     "pre-build": "npm run gen-workflow && npm run gen-template",
     "build": "tsc",
     "format": "prettier --write **/*.ts",
@@ -14,7 +16,7 @@
     "lint": "eslint src/**/*.ts",
     "package": "ncc build --source-map --license licenses.txt",
     "test": "jest",
-    "all": "npm run build && npm run format && npm run lint && npm run package && npm test"
+    "all": "npm run build && npm run format && npm run lint && npm run package && npm run gen-all && npm test"
   },
   "repository": {
     "type": "git",

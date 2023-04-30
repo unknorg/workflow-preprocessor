@@ -1,11 +1,43 @@
-name: 'Your name here'
-description: 'Provide a description here'
-author: 'Your name or organization here'
+name: 'Workflow Processor'
+description: 'Builds valid github workflows from relations between templates and workflows'
+author: 'Hathoute'
 inputs:
-  milliseconds: # change this
-    required: true
-    description: 'input description here'
-    default: 'default value if applicable'
+  templates-directory:
+    required: false
+    description: 'The directory containing the templates to use, will not scan subdirectories'
+    default: './src/templates'
+  workflows-directory:
+    required: false
+    description: 'The directory containing the workflows to use, will not scan subdirectories'
+    default: './src'
+  schema-directory:
+    required: false
+    description: 'The directory containing the schemas, you can use this to override the default schemas'
+    default: './schema'
+  generated-directory:
+    required: false
+    description: 'The directory to output the generated workflows to'
+    default: './generated'
+  log-level:
+    required: false
+    description: 'The log level to use, can be [trace, debug, info, warn, error]'
+    default: 'info'
+  die-when-invalid:
+    required: false
+    description: 'Whether to die when the generated workflow is invalid, per the definition of the schema'
+    default: 'true'
 runs:
-  using: 'node16'
-  main: 'dist/index.js'
+  using: 'composite'
+  steps:
+    - run: |
+        echo "This action requires a node version of 17.0.0 or higher"
+        echo "Current node version: $(node -v)"
+        node dist/index.js
+      env:
+        INPUT_TEMPLATES-DIRECTORY: ${{ inputs.templates-directory }}
+        INPUT_WORKFLOWS-DIRECTORY: ${{ inputs.workflows-directory }}
+        INPUT_SCHEMA-DIRECTORY: ${{ inputs.schema-directory }}
+        INPUT_GENERATED-DIRECTORY: ${{ inputs.generated-directory }}
+        INPUT_LOG-LEVEL: ${{ inputs.log-level }}
+        INPUT_DIE-WHEN-INVALID: ${{ inputs.die-when-invalid }}
+      shell: bash

@@ -1,0 +1,26 @@
+internals:
+  job-pre: &job_pre !zipped
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Setup Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: 16
+    - name: Install dependencies
+      run: npm install
+
+jobs:
+  test-base:
+    runs-on: invalid-os
+    name: A job to run tests
+    steps: !unzip
+      - *job_pre
+      - name: Run tests
+        run: npm test
+  deploy-base:
+    runs-on: invalid-os
+    name: A job to deploy
+    steps: !unzip
+      - *job_pre
+      - name: Run deploy
+        run: npm run deploy

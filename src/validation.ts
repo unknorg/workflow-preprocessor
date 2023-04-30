@@ -5,7 +5,7 @@ import {
   Workflow,
   ElementType
 } from './types'
-import {coldObject, detectCircularReferences} from './utils'
+import {coldObject, detectCircularReferences, groupBy} from './utils/misc'
 import {GithubWorkflow} from './schema/github-workflow'
 import Ajv, {ValidateFunction} from 'ajv'
 import fs from 'fs'
@@ -26,14 +26,18 @@ function createValidator<T>(jsonSchemaPath: string): ValidateFunction<T> {
 }
 
 const validateWorkflowSchema = coldObject(() =>
-  createValidator<Workflow>(path.join(getConfig('schemaDir'), 'workflow.json'))
+  createValidator<Workflow>(
+    path.join(getConfig('schemaDirectory'), 'workflow.json')
+  )
 )
 const validateTemplateSchema = coldObject(() =>
-  createValidator<Template>(path.join(getConfig('schemaDir'), 'template.json'))
+  createValidator<Template>(
+    path.join(getConfig('schemaDirectory'), 'template.json')
+  )
 )
 const validateGithubWorkflowSchema = coldObject(() =>
   createValidator<GithubWorkflow>(
-    path.join(getConfig('schemaDir'), 'githubworkflow.json')
+    path.join(getConfig('schemaDirectory'), 'githubworkflow.json')
   )
 )
 
@@ -43,9 +47,7 @@ export const validateTemplate = (template: Template): void => {
   // TODO: Forbid having duplicate names in jobs
   if (!validateTemplateSchema()(template)) {
     throw new Error(
-      `Invalid template: ${validateTemplateSchema()
-        .errors?.map(error => error.message)
-        .join(', ')}`
+      `Invalid template: ${formatErrorMessage(validateTemplateSchema())}`
     )
   }
 }
@@ -54,9 +56,7 @@ export const validateWorkflow = (content: Workflow): void => {
   trace('validation.ts#validateWorkflow()')
   if (!validateWorkflowSchema()(content)) {
     throw new Error(
-      `Invalid workflow: ${validateWorkflowSchema()
-        .errors?.map(error => error.message)
-        .join(', ')}`
+      `Invalid workflow: ${formatErrorMessage(validateWorkflowSchema())}`
     )
   }
 }
@@ -97,11 +97,22 @@ export const validateGithubWorkflow = (
   trace('validation.ts#validateWorkflow()')
   if (!validateGithubWorkflowSchema()(content)) {
     throw new Error(
-      `Invalid workflow: ${validateGithubWorkflowSchema()
-        .errors?.map(error => error.message)
-        .join(', ')}`
+      `Invalid workflow: ${formatErrorMessage(validateGithubWorkflowSchema())}`
     )
   }
 
   return true
+}
+
+const formatErrorMessage = (validator: ValidateFunction<unknown>): string => {
+  return [
+    ...groupBy(validator.errors ?? [], error => error.instancePath).entries()
+  ]
+    .map(
+      ([instancePath, errors]) =>
+        `Instance Path '${instancePath}': ${errors
+          .map(error => error.message)
+          .join(', ')}`
+    )
+    .join('\n')
 }

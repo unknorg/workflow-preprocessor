@@ -364,7 +364,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.capitalizeFirstLetter = exports.isExtendedJob = exports.detectCircularReferences = exports.coldObject = exports.combineObjects = exports.getFilenameWithoutExtension = void 0;
+exports.groupBy = exports.capitalizeFirstLetter = exports.isExtendedJob = exports.detectCircularReferences = exports.coldObject = exports.combineObjects = exports.getFilenameWithoutExtension = void 0;
 const path_1 = __importDefault(__nccwpck_require__(1017));
 //region YAML
 //endregion
@@ -440,6 +440,17 @@ const capitalizeFirstLetter = (string) => {
     return string.charAt(0).toUpperCase() + string.slice(1);
 };
 exports.capitalizeFirstLetter = capitalizeFirstLetter;
+// TODO: to test
+const groupBy = (arr, key) => {
+    return arr.reduce((map, item) => {
+        var _a;
+        const k = key(item);
+        const collection = (_a = map.get(k)) !== null && _a !== void 0 ? _a : [];
+        collection.push(item);
+        return map.set(k, collection);
+    }, new Map());
+};
+exports.groupBy = groupBy;
 
 
 /***/ }),
@@ -593,10 +604,14 @@ const validateGithubWorkflow = (content) => {
 };
 exports.validateGithubWorkflow = validateGithubWorkflow;
 const formatErrorMessage = (validator) => {
-    var _a, _b;
-    return ((_b = (_a = validator.errors) === null || _a === void 0 ? void 0 : _a.map(error => {
-        return `${error.keyword}: ${error.message}`;
-    }).join(', ')) !== null && _b !== void 0 ? _b : '');
+    var _a;
+    return [
+        ...(0, misc_1.groupBy)((_a = validator.errors) !== null && _a !== void 0 ? _a : [], error => error.instancePath).entries()
+    ]
+        .map(([instancePath, errors]) => `Instance Path '${instancePath}': ${errors
+        .map(error => error.message)
+        .join(', ')}`)
+        .join('\n');
 };
 
 

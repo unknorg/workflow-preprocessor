@@ -1,105 +1,128 @@
 <p align="center">
-  <a href="https://github.com/actions/typescript-action/actions"><img alt="typescript-action status" src="https://github.com/actions/typescript-action/workflows/build-test/badge.svg"></a>
+  <a href="https://github.com/Hathoute/workflow-preprocessor/actions"><img alt="ci status" src="https://github.com/Hathoute/workflow-preprocessor/actions/workflows/main.yml/badge.svg"></a>
+  <a href="https://codecov.io/github/Hathoute/workflow-preprocessor"><img alt="codecov" src="https://codecov.io/github/Hathoute/workflow-preprocessor/branch/main/graph/badge.svg?token=80E2ZCG9JL"></a>
+  <a href="https://opensource.org/licenses/MIT"><img alt="license mit" src="https://img.shields.io/badge/License-MIT-yellow.svg"></a>
 </p>
 
-# Create a JavaScript Action using TypeScript
+# GitHub Workflow Processor
 
-Use this template to bootstrap the creation of a TypeScript action.:rocket:
+A GitHub Action that generates GitHub workflows from templates.
 
-This template includes compilation support, tests, a validation workflow, publishing, and versioning guidance.  
+Supports importing and extending other templates, as well as using YAML anchors.
 
-If you are new, there's also a simpler introduction.  See the [Hello World JavaScript Action](https://github.com/actions/hello-world-javascript-action)
-
-## Create an action from this template
-
-Click the `Use this Template` and provide the new repo details for your action
-
-## Code in Main
-
-> First, you'll need to have a reasonably modern version of `node` handy. This won't work with versions older than 9, for instance.
-
-Install the dependencies  
-```bash
-$ npm install
-```
-
-Build the typescript and package it for distribution
-```bash
-$ npm run build && npm run package
-```
-
-Run the tests :heavy_check_mark:  
-```bash
-$ npm test
-
- PASS  ./index.test.js
-  ✓ throws invalid number (3ms)
-  ✓ wait 500 ms (504ms)
-  ✓ test runs (95ms)
-
-...
-```
-
-## Change action.yml
-
-The action.yml defines the inputs and output for your action.
-
-Update the action.yml with your name, description, inputs and outputs for your action.
-
-See the [documentation](https://help.github.com/en/articles/metadata-syntax-for-github-actions)
-
-## Change the Code
-
-Most toolkit and CI/CD operations involve async operations so the action is run in an async function.
-
-```javascript
-import * as core from '@actions/core';
-...
-
-async function run() {
-  try { 
-      ...
-  } 
-  catch (error) {
-    core.setFailed(error.message);
-  }
-}
-
-run()
-```
-
-See the [toolkit documentation](https://github.com/actions/toolkit/blob/master/README.md#packages) for the various packages.
-
-## Publish to a distribution branch
-
-Actions are run from GitHub repos so we will checkin the packed dist folder. 
-
-Then run [ncc](https://github.com/zeit/ncc) and push the results:
-```bash
-$ npm run package
-$ git add dist
-$ git commit -a -m "prod dependencies"
-$ git push origin releases/v1
-```
-
-Note: We recommend using the `--license` option for ncc, which will create a license file for all of the production node modules used in your project.
-
-Your action is now published! :rocket: 
-
-See the [versioning documentation](https://github.com/actions/toolkit/blob/master/docs/action-versioning.md)
-
-## Validate
-
-You can now validate the action by referencing `./` in a workflow in your repo (see [test.yml](.github/workflows/test.yml))
+## Usage
 
 ```yaml
-uses: ./
-with:
-  milliseconds: 1000
+name: Generate Workflows
+on:
+  push:
+    branches:
+      - main
+jobs:
+  generate:
+    - uses: actions/checkout@v3
+    - uses: Hathoute/workflow-preprocessor@v1
+      with:
+        generated-directory: 'generated'
+    - uses: actions/upload-artifact@v3
+      with:
+        name: generated-workflows
+        path: generated
+  ```
+
+## Inputs
+
+| Input               | Required | Description                                                                             | Default           |
+|---------------------|----------|-----------------------------------------------------------------------------------------|-------------------|
+| templates-directory | false    | The directory containing the templates to use, will not scan subdirectories             | './src/templates' |
+| workflows-directory | false    | The directory containing the workflows to use, will not scan subdirectories             | './src'           |
+| schema-directory    | false    | The directory containing the schemas, you can use this to override the default schemas  | './schema'        |
+| generated-directory | false    | The directory to output the generated workflows to                                      | './generated'     |
+| log-level           | false    | The log level to use, can be [trace, debug, info, warn, error]                          | 'info'            |
+| die-when-invalid    | false    | Whether to die when the generated workflow is invalid, per the definition of the schema | 'true'            |
+
+## Workflows and Templates
+
+There are two main components to this action, workflows and templates.
+
+A <b>workflow</b> is a YAML file that resembles to the structure of a GitHub workflow, but with some extra features.
+These are the files that will be generated by this action in the `generated-directory`.
+An example workflow would be:
+```yaml
+name: My Workflow
+on:
+  push:
+    branches:
+      - main
+imports: 
+  - 'templates/build.yml'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    extends: build/maven-java
 ```
 
-See the [actions tab](https://github.com/actions/typescript-action/actions) for runs of this action! :rocket:
+A <b>template</b> is a YAML file that contains different job templates that can be used in workflows.
+These files are NOT generated, and are only used to be referenced by workflows. 
+An example template would be:
+```yaml
+internals:
+  - setup: &checkout !zipped
+      - uses: actions/checkout@v2
+      - name: Set up JDK 17
+        uses: actions/setup-java@v1
+        with:
+          java-version: 17
+jobs:
+  maven-java:
+    runs-on: ubuntu-latest
+    steps: !unzip
+      - *checkout
+      - name: Build with Maven
+        run: mvn -B package --file pom.xml
+  gradle-java:
+    runs-on: ubuntu-latest
+    steps: !unzip
+      - *checkout
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+      - name: Build with Gradle
+        run: ./gradlew build
+```
 
-## Usage:
+## Custom YAML Tags
 
-After testing you can [create a v1 tag](https://github.com/actions/toolkit/blob/master/docs/action-versioning.md) to reference the stable and latest V1 action
+The `!zipped` tag allows you to mark an array that can be flattened using the `!unzip` tag.
+
+This is extremely useful when you want to use YAML anchors to define a set of steps, and then use 
+them at the start of a job.
+
+Example usage:
+```yaml
+pre-steps: &pre_steps !zipped
+  - name: step1
+    run: echo step1
+  - name: step2
+    run: echo step2
+
+job:
+  steps: !unzip
+    - *pre_steps
+    - name: step3
+      run: echo step3
+  ```
+
+Would result in:
+```yaml
+job:
+  steps:
+    - name: step1
+      run: echo step1
+    - name: step2
+      run: echo step2
+    - name: step3
+      run: echo step3
+  ```
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FHathoute%2Fworkflow-preprocessor.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FHathoute%2Fworkflow-preprocessor?ref=badge_large)

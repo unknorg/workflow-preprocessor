@@ -1,0 +1,86 @@
+name: Test Pull Request
+on:
+  pull_request:
+    types: [ assigned, opened, synchronize ]
+    branches:
+      - main
+
+# TODO: Replace these jobs as soon as the github-common-workflows repository is ready
+jobs:
+  lint_commits:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Lint commits
+        uses: actions-ecosystem/action-lint-commits@v1
+        id: lint-commits
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          regex: '^\w+(\(.+\))?: .+' # e.g.) "feat(api): Add /users/get", "feat: Add /users/get", ...
+          format: markdown
+      - name: Post warning comment
+        uses: Hathoute/action-create-comment@v1.0.4
+        if: ${{ steps.lint-commits.outputs.unmatched_commits != '' }}
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          comment_uid: 513522
+          body: |
+            The following commits needs their message changes:
+
+            ${{ steps.lint-commits.outputs.unmatched_commits }}
+
+            The format `<type>(<scope>): <subject>` (`^\w+(\(.+\))?: .+`) is acceptable. e.g., `feat(api): Add /users/get`
+      - name: Post valid comment
+        uses: Hathoute/action-create-comment@v1.0.4
+        if: ${{ steps.lint-commits.outputs.unmatched_commits == '' }}
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          comment_uid: 513522
+          body: |
+            All the commit messages are valid.
+
+            ✔️ Lint passed.
+      - name: Fail when commits don't pass lint
+        if: ${{ steps.lint-commits.outputs.unmatched_commits != '' }}
+        run: |
+          echo "::error::Commit messages don't pass lint, check the comment on the PR for more details."
+          exit 1
+  test-node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 18
+      - name: Install dependencies
+        run: npm install
+      - name: Run All (lint, format, test)
+        run: npm run all
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
+      - uses: actions/upload-artifact@v3
+        with:
+          name: dist-test
+          path: dist
+          retention-days: 1
+
+  test-action:
+    runs-on: ubuntu-latest
+    needs: [test-node]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Delete existing dist/ directory
+        run: rm -rf dist
+      - uses: actions/download-artifact@v3
+        with:
+          name: dist-test
+          path: dist
+      - name: Copy test files
+        run: |
+          cp -r ./__tests__/action-test .
+          ls -la
+      - uses: ./
+        with:
+          templates-directory: './action-test/src/templates'
+          workflows-directory: './action-test/src'
+          generated-directory: './action-test/generated'

@@ -1,0 +1,84 @@
+name: Main workflow
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build: # make sure build/ci work properly
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 18
+      - name: Install dependencies
+        run: npm ci
+      - name: Run All
+        run: npm run all
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
+      - uses: actions/upload-artifact@v3
+        with:
+          name: dist-release
+          path: dist
+          retention-days: 1
+  test-action: # make sure the action works on a clean machine without building
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: |
+          cp -r ./__tests__/action-test .
+          ls -la
+      - uses: ./
+        with:
+          templates-directory: './action-test/src/templates'
+          workflows-directory: './action-test/src'
+          generated-directory: './action-test/generated'
+  check-dist: # make sure the dist/ folder is up-to-date
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Delete dist/ folder
+        run: rm -rf dist
+      - name: Get built dist artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: dist-release
+          path: dist
+      - name: Compare existing and generated dist
+        run: |
+          if [ "$(git diff --ignore-space-at-eol dist/ | wc -l)" -gt "0" ]; then
+            echo "Detected uncommitted changes after build.  See status below:"
+            git diff
+            exit 1
+          fi
+        id: diff
+  create-tag:
+    runs-on: ubuntu-latest
+    needs: [build, test-action, check-dist]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 2    # Retrieve the precending commit
+      # Only create tag when dist/ folder has changed.
+      - name: Get changed files in the dist/ folder
+        id: changed-files-specific
+        uses: tj-actions/changed-files@v35
+        with:
+          files: dist/*
+      - name: Bump version and push tag
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v6.1
+        if: steps.changed-files-specific.outputs.any_changed == 'true'
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create a GitHub release
+        uses: ncipollo/release-action@v1
+        if: steps.changed-files-specific.outputs.files == 'true'
+        with:
+          tag: ${{ steps.tag_version.outputs.new_tag }}
+          name: Release ${{ steps.tag_version.outputs.new_tag }}
+          body: ${{ steps.tag_version.outputs.changelog }}

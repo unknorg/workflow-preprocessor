@@ -27,17 +27,5 @@ inputs:
     description: 'Whether to die when the generated workflow is invalid, per the definition of the schema'
     default: 'true'
 runs:
-  using: 'composite'
-  steps:
-    - run: |
-        echo "This action requires a node version of 17.0.0 or higher"
-        echo "Current node version: $(node -v)"
-        node dist/index.js
-      env:
-        INPUT_TEMPLATES-DIRECTORY: ${{ inputs.templates-directory }}
-        INPUT_WORKFLOWS-DIRECTORY: ${{ inputs.workflows-directory }}
-        INPUT_SCHEMA-DIRECTORY: ${{ inputs.schema-directory }}
-        INPUT_GENERATED-DIRECTORY: ${{ inputs.generated-directory }}
-        INPUT_LOG-LEVEL: ${{ inputs.log-level }}
-        INPUT_DIE-WHEN-INVALID: ${{ inputs.die-when-invalid }}
-      shell: bash
+  using: 'docker'
+  image: 'Dockerfile'

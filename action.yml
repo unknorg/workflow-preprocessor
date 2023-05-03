@@ -13,7 +13,7 @@ inputs:
   schema-directory:
     required: false
     description: 'The directory containing the schemas, you can use this to override the default schemas'
-    default: './schema'
+    default: '/action/schema'
   generated-directory:
     required: false
     description: 'The directory to output the generated workflows to'

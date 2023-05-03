@@ -64,11 +64,14 @@ jobs:
         with:
           fetch-depth: 2    # Retrieve the precending commit
       # Only create tag when dist/ folder has changed.
-      - name: Get changed files in the dist/ folder
+      - name: Get changed files that the building depends on
         id: changed-files-specific
         uses: tj-actions/changed-files@v35
         with:
-          files: dist/*
+          files:
+            - dist/*
+            - action.yml
+            - Dockerfile
       - name: Bump version and push tag
         id: tag_version
         uses: mathieudutour/github-tag-action@v6.1

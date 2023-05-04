@@ -62,16 +62,19 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          fetch-depth: 2    # Retrieve the precending commit
+          fetch-depth: 2
+          persist-credentials: true
       # Only create tag when dist/ folder has changed.
       - name: Get changed files that the building depends on
         id: changed-files-specific
         uses: tj-actions/changed-files@v35
         with:
-          files:
-            - dist/*
-            - action.yml
-            - Dockerfile
+          files: |
+            dist/*
+            action.yml
+            Dockerfile
+      - name: List changed files
+        run: echo "Changed files:: ${{ steps.changed-files-specific.outputs.all_changed_files }}"
       - name: Bump version and push tag
         id: tag_version
         uses: mathieudutour/github-tag-action@v6.1
@@ -80,7 +83,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Create a GitHub release
         uses: ncipollo/release-action@v1
-        if: steps.changed-files-specific.outputs.files == 'true'
+        if: steps.changed-files-specific.outputs.any_changed == 'true'
         with:
           tag: ${{ steps.tag_version.outputs.new_tag }}
           name: Release ${{ steps.tag_version.outputs.new_tag }}

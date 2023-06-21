@@ -4,9 +4,13 @@ import {buildWorkflows, load as loadWorkflows} from './workflows'
 import {validateNoCircularRefs} from './validation'
 import {writeYAML} from './utils/yaml'
 import {info, trace} from './logging'
+import fs from 'fs'
 
 export async function run(): Promise<void> {
   try {
+    info(`Process cwd: ${process.cwd()}`)
+    info(`fs.readdirSync('.'): ${JSON.stringify(fs.readdirSync('.'))}`)
+
     trace('main.ts#run()')
 
     const templates = loadTemplates()

@@ -8,7 +8,7 @@ on:
 # TODO: Replace these jobs as soon as the github-common-workflows repository is ready
 jobs:
   lint_commits:
-    runs-on: ubuntu-latest
+    runs-on: arc-systems
     permissions:
       pull-requests: write
       issues: write
@@ -48,7 +48,7 @@ jobs:
           echo "::error::Commit messages don't pass lint, check the comment on the PR for more details."
           exit 1
   test-node:
-    runs-on: ubuntu-latest
+    runs-on: arc-systems
     steps:
       - uses: actions/checkout@v3
       - name: Setup Node.js
@@ -68,7 +68,7 @@ jobs:
           retention-days: 1
 
   test-action:
-    runs-on: ubuntu-latest
+    runs-on: arc-systems
     needs: [test-node]
     steps:
       - uses: actions/checkout@v3

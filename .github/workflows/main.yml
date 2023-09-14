@@ -8,7 +8,7 @@ jobs:
   build: # make sure build/ci work properly
     runs-on: arc-systems
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
@@ -27,7 +27,7 @@ jobs:
   test-action: # make sure the action works on a clean machine without building
     runs-on: arc-systems
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: |
           cp -r ./__tests__/action-test .
           ls -la
@@ -40,7 +40,7 @@ jobs:
     runs-on: arc-systems
     needs: [build]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Delete dist/ folder
         run: rm -rf dist
       - name: Get built dist artifacts
@@ -60,7 +60,7 @@ jobs:
     runs-on: arc-systems
     needs: [build, test-action, check-dist]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 2
           persist-credentials: true

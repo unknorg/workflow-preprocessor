@@ -67,7 +67,7 @@ jobs:
       # Only create tag when dist/ folder has changed.
       - name: Get changed files that the building depends on
         id: changed-files-specific
-        uses: tj-actions/changed-files@v39
+        uses: tj-actions/changed-files@v40
         with:
           files: |
             dist/*
